@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { TopBar } from "@/components/layout/top-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <AuthProvider>
+          <TopBar />
           {children}
           <BottomNav />
         </AuthProvider>

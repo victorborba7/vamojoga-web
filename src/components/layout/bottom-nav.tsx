@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PlusCircle, Trophy, History, Users } from "lucide-react";
+import { BookOpen, PlusCircle, Trophy, History, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 interface NavItem {
   href: string;
@@ -12,7 +13,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/collection", label: "Coleção", icon: BookOpen },
   { href: "/matches", label: "Partidas", icon: History },
   { href: "/matches/new", label: "Nova", icon: PlusCircle },
   { href: "/friends", label: "Amigos", icon: Users },
@@ -23,6 +24,7 @@ const hiddenRoutes = ["/login", "/register"];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { pendingFriendsCount } = useAuth();
 
   if (hiddenRoutes.includes(pathname)) {
     return null;
@@ -33,13 +35,12 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md items-center justify-around py-2">
         {navItems.map((item) => {
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : item.href === "/matches"
-                ? pathname === "/matches" || (pathname.startsWith("/matches/") && !pathname.startsWith("/matches/new"))
-                : pathname.startsWith(item.href);
+            item.href === "/matches"
+              ? pathname === "/matches" || (pathname.startsWith("/matches/") && !pathname.startsWith("/matches/new"))
+              : pathname.startsWith(item.href);
           const Icon = item.icon;
           const isMainAction = item.href === "/matches/new";
+          const showBadge = item.href === "/friends" && pendingFriendsCount > 0;
 
           return (
             <Link
@@ -60,7 +61,14 @@ export function BottomNav() {
                   <Icon className="h-7 w-7" />
                 </div>
               ) : (
-                <Icon className={cn("h-5 w-5", isActive && "text-primary-400")} />
+                <div className="relative">
+                  <Icon className={cn("h-5 w-5", isActive && "text-primary-400")} />
+                  {showBadge && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                      {pendingFriendsCount > 9 ? "9+" : pendingFriendsCount}
+                    </span>
+                  )}
+                </div>
               )}
               <span className={cn(
                 "text-[10px] font-medium",

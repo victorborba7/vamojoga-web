@@ -11,6 +11,8 @@ import type {
   UserStats,
   FriendshipResponse,
   FriendResponse,
+  LibraryEntryResponse,
+  WishlistEntryResponse,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -106,6 +108,10 @@ export async function listGames(): Promise<GameResponse[]> {
   return request<GameResponse[]>("/games/");
 }
 
+export async function getGame(gameId: string): Promise<GameResponse> {
+  return request<GameResponse>(`/games/${gameId}`);
+}
+
 export async function searchGames(query: string, limit = 10): Promise<GameResponse[]> {
   return request<GameResponse[]>(
     `/games/search/?q=${encodeURIComponent(query)}&limit=${limit}`
@@ -194,5 +200,60 @@ export async function rejectFriendRequest(friendshipId: string): Promise<Friends
 export async function removeFriend(friendshipId: string): Promise<void> {
   await request(`/friends/${friendshipId}`, {
     method: "DELETE",
+  });
+}
+
+// ---- Library ----
+
+export async function getMyLibrary(): Promise<LibraryEntryResponse[]> {
+  return request<LibraryEntryResponse[]>("/library/");
+}
+
+export async function getUserLibrary(userId: string): Promise<LibraryEntryResponse[]> {
+  return request<LibraryEntryResponse[]>(`/library/${userId}`);
+}
+
+export async function addToLibrary(gameId: string): Promise<LibraryEntryResponse> {
+  return request<LibraryEntryResponse>("/library/", {
+    method: "POST",
+    body: JSON.stringify({ game_id: gameId }),
+  });
+}
+
+export async function removeFromLibrary(gameId: string): Promise<void> {
+  await request(`/library/${gameId}`, { method: "DELETE" });
+}
+
+// ---- Wishlist ----
+
+export async function getMyWishlist(): Promise<WishlistEntryResponse[]> {
+  return request<WishlistEntryResponse[]>("/wishlist/");
+}
+
+export async function getUserWishlist(userId: string): Promise<WishlistEntryResponse[]> {
+  return request<WishlistEntryResponse[]>(`/wishlist/${userId}`);
+}
+
+export async function addToWishlist(
+  gameId: string,
+  isPublic = true
+): Promise<WishlistEntryResponse> {
+  return request<WishlistEntryResponse>("/wishlist/", {
+    method: "POST",
+    body: JSON.stringify({ game_id: gameId, is_public: isPublic }),
+  });
+}
+
+export async function removeFromWishlist(gameId: string): Promise<void> {
+  await request(`/wishlist/${gameId}`, { method: "DELETE" });
+}
+
+export async function updateWishlistVisibility(
+  gameId: string,
+  isPublic: boolean
+): Promise<WishlistEntryResponse> {
+  return request<WishlistEntryResponse>(`/wishlist/${gameId}/visibility`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_public: isPublic }),
   });
 }

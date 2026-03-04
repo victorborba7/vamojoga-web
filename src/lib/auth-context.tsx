@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { UserResponse } from "@/types";
-import { getMe, login as apiLogin, register as apiRegister, ApiError } from "@/lib/api";
+import { getMe, login as apiLogin, register as apiRegister, getPendingReceived, ApiError } from "@/lib/api";
 import type { UserCreate, UserLogin } from "@/types";
 
 interface AuthContextType {
@@ -18,6 +18,8 @@ interface AuthContextType {
   login: (data: UserLogin) => Promise<void>;
   register: (data: UserCreate) => Promise<void>;
   logout: () => void;
+  pendingFriendsCount: number;
+  refreshPendingCount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -25,6 +27,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
+
+  const refreshPendingCount = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const pending = await getPendingReceived();
+      setPendingFriendsCount(pending.length);
+    } catch {
+      // silently ignore
+    }
+  }, []);
 
   const fetchUser = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -35,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe();
       setUser(me);
+      await refreshPendingCount();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         localStorage.removeItem("token");
@@ -42,17 +57,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshPendingCount]);
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  // Poll for pending requests every 60s
+  useEffect(() => {
+    const interval = setInterval(refreshPendingCount, 60_000);
+    return () => clearInterval(interval);
+  }, [refreshPendingCount]);
 
   const login = async (data: UserLogin) => {
     const res = await apiLogin(data);
     localStorage.setItem("token", res.access_token);
     const me = await getMe();
     setUser(me);
+    await refreshPendingCount();
   };
 
   const register = async (data: UserCreate) => {
@@ -63,10 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    setPendingFriendsCount(0);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, pendingFriendsCount, refreshPendingCount }}>
       {children}
     </AuthContext.Provider>
   );

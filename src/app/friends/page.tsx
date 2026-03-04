@@ -17,6 +17,7 @@ import {
   Search,
   UserMinus,
 } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import {
   getFriends,
@@ -34,7 +35,7 @@ import type { FriendResponse, FriendshipResponse, UserResponse } from "@/types";
 type Tab = "friends" | "pending" | "add";
 
 export default function FriendsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshPendingCount } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("friends");
   const [friends, setFriends] = useState<FriendResponse[]>([]);
@@ -119,6 +120,7 @@ export default function FriendsPage() {
     try {
       await acceptFriendRequest(friendshipId);
       await loadData();
+      await refreshPendingCount();
     } catch {
       // ignore
     } finally {
@@ -131,6 +133,7 @@ export default function FriendsPage() {
     try {
       await rejectFriendRequest(friendshipId);
       await loadData();
+      await refreshPendingCount();
     } catch {
       // ignore
     } finally {
@@ -238,27 +241,32 @@ export default function FriendsPage() {
             friends.map((friend) => (
               <Card key={friend.user_id} className="p-3!">
                 <div className="flex items-center gap-3">
-                  <Avatar name={friend.username} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {friend.username}
-                    </p>
-                    {friend.full_name && (
-                      <p className="text-xs text-muted truncate">{friend.full_name}</p>
-                    )}
-                    <p className="text-xs text-neutral-600 mt-0.5">
-                      Amigos desde{" "}
-                      {new Date(friend.since).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
+                  <Link
+                    href={`/friends/${friend.user_id}`}
+                    className="flex flex-1 items-center gap-3 min-w-0"
+                  >
+                    <Avatar name={friend.username} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {friend.username}
+                      </p>
+                      {friend.full_name && (
+                        <p className="text-xs text-muted truncate">{friend.full_name}</p>
+                      )}
+                      <p className="text-xs text-neutral-600 mt-0.5">
+                        Amigos desde{" "}
+                        {new Date(friend.since).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </Link>
                   <button
                     onClick={() => handleRemove(friend.friendship_id)}
                     disabled={actionLoading === friend.friendship_id}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-loss/10 text-loss/60 hover:bg-loss/20 hover:text-loss transition-colors cursor-pointer disabled:opacity-50"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-loss/10 text-loss/60 hover:bg-loss/20 hover:text-loss transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                     title="Remover amigo"
                   >
                     <UserMinus className="h-4 w-4" />

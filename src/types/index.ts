@@ -124,3 +124,20 @@ export interface FriendResponse {
   full_name: string | null;
   since: string;
 }
+
+// ---- Library ----
+export interface LibraryEntryResponse {
+  id: string;
+  game: GameResponse;
+  match_count: number;
+  added_at: string;
+}
+
+// ---- Wishlist ----
+export interface WishlistEntryResponse {
+  id: string;
+  game: GameResponse;
+  is_public: boolean;
+  added_at: string;
+  friends_who_own: string[];
+}
