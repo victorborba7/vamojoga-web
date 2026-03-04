@@ -1,0 +1,812 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { createMatch, ApiError } from "@/lib/api";
+import type { UserResponse, GameResponse, MatchPlayerCreate } from "@/types";
+import { GameAutocomplete } from "@/components/match/game-autocomplete";
+import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
+
+type Step = "game" | "mode" | "players" | "score" | "confirm";
+type MatchMode = "teams" | "individual";
+
+interface IndividualPlayer {
+  user: UserResponse;
+  score: number;
+  position: number;
+}
+
+export default function NewMatchPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const [loadingData] = useState(false);
+
+  const [step, setStep] = useState<Step>("game");
+  const [mode, setMode] = useState<MatchMode>("teams");
+  const [selectedGame, setSelectedGame] = useState<GameResponse | null>(null);
+
+  // Teams mode
+  const [teamA, setTeamA] = useState<UserResponse[]>([]);
+  const [teamB, setTeamB] = useState<UserResponse[]>([]);
+  const [scoreA, setScoreA] = useState(0);
+  const [scoreB, setScoreB] = useState(0);
+  const [selectingFor, setSelectingFor] = useState<"A" | "B">("A");
+
+  // Individual mode
+  const [individualPlayers, setIndividualPlayers] = useState<IndividualPlayer[]>([]);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+  }, [user, authLoading, router]);
+
+  const selectedIds =
+    mode === "teams"
+      ? [...teamA, ...teamB].map((p) => p.id)
+      : individualPlayers.map((p) => p.user.id);
+
+  // --- Teams helpers ---
+  function addPlayer(player: UserResponse) {
+    if (selectingFor === "A") {
+      setTeamA((prev) => [...prev, player]);
+    } else {
+      setTeamB((prev) => [...prev, player]);
+    }
+  }
+
+  function removePlayer(playerId: string, team: "A" | "B") {
+    if (team === "A") {
+      setTeamA((prev) => prev.filter((p) => p.id !== playerId));
+    } else {
+      setTeamB((prev) => prev.filter((p) => p.id !== playerId));
+    }
+  }
+
+  // --- Individual helpers ---
+  function addIndividualPlayer(player: UserResponse) {
+    setIndividualPlayers((prev) => [
+      ...prev,
+      { user: player, score: 0, position: prev.length + 1 },
+    ]);
+  }
+
+  function removeIndividualPlayer(playerId: string) {
+    setIndividualPlayers((prev) => {
+      const filtered = prev.filter((p) => p.user.id !== playerId);
+      return filtered.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
+
+  function updateIndividualScore(playerId: string, score: number) {
+    setIndividualPlayers((prev) => {
+      const updated = prev.map((p) =>
+        p.user.id === playerId ? { ...p, score } : p
+      );
+      const sorted = [...updated].sort((a, b) => b.score - a.score);
+      return sorted.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
+
+  function autoRankByScore() {
+    setIndividualPlayers((prev) => {
+      const sorted = [...prev].sort((a, b) => b.score - a.score);
+      return sorted.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
+
+  function movePosition(playerId: string, direction: "up" | "down") {
+    setIndividualPlayers((prev) => {
+      const idx = prev.findIndex((p) => p.user.id === playerId);
+      if (idx < 0) return prev;
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const updated = [...prev];
+      [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+      return updated.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
+
+  // --- Submit ---
+  async function handleConfirm() {
+    if (!selectedGame || !user) return;
+    setSubmitting(true);
+    setError("");
+
+    let players: MatchPlayerCreate[];
+
+    if (mode === "teams") {
+      const isTeamAWinner = scoreA > scoreB;
+      players = [
+        ...teamA.map((p) => ({
+          user_id: p.id,
+          position: isTeamAWinner ? 1 : 2,
+          score: scoreA,
+          is_winner: isTeamAWinner,
+        })),
+        ...teamB.map((p) => ({
+          user_id: p.id,
+          position: isTeamAWinner ? 2 : 1,
+          score: scoreB,
+          is_winner: !isTeamAWinner,
+        })),
+      ];
+    } else {
+      players = individualPlayers.map((p) => ({
+        user_id: p.user.id,
+        position: p.position,
+        score: p.score,
+        is_winner: p.position === 1,
+      }));
+    }
+
+    try {
+      await createMatch({
+        game_id: selectedGame.id,
+        players,
+      });
+      router.push("/matches");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Erro ao registrar partida");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // --- Validations ---
+  const canGoToScore =
+    mode === "teams"
+      ? teamA.length >= 1 && teamB.length >= 1
+      : individualPlayers.length >= 2;
+
+  const canConfirmIndividual = individualPlayers.length >= 2;
+
+  const steps: Step[] =
+    mode === "teams"
+      ? ["game", "mode", "players", "score", "confirm"]
+      : ["game", "mode", "players", "score", "confirm"];
+
+  const stepIndex = steps.indexOf(step);
+
+  if (authLoading || loadingData) {
+    return (
+      <PageContainer>
+        <PageHeader title="Nova Partida" subtitle="Carregando..." />
+        <div className="flex items-center justify-center py-20">
+          <p className="text-muted">Carregando...</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Nova Partida"
+        subtitle={
+          step === "game"
+            ? "Escolha o jogo"
+            : step === "mode"
+            ? "Modo de jogo"
+            : step === "players"
+            ? mode === "teams"
+              ? "Monte os times"
+              : "Adicione os jogadores"
+            : step === "score"
+            ? "Qual foi o placar?"
+            : "Confirme os dados"
+        }
+      />
+
+      {/* Step Indicator */}
+      <div className="flex items-center gap-2 mb-6">
+        {steps.map((s, i) => (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                stepIndex >= i ? "bg-primary-500" : "bg-neutral-700"
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* STEP: Selecionar Jogo */}
+      {step === "game" && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted mb-2 font-medium">Busque e selecione um jogo</p>
+          <GameAutocomplete
+            selectedGame={selectedGame}
+            onSelect={(game) => {
+              setSelectedGame(game);
+              setStep("mode");
+            }}
+            onClear={() => setSelectedGame(null)}
+          />
+        </div>
+      )}
+
+      {/* STEP: Modo de Jogo */}
+      {step === "mode" && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted mb-2 font-medium">Como será a partida?</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                setMode("teams");
+                setIndividualPlayers([]);
+                if (user) {
+                  setTeamA([user]);
+                  setTeamB([]);
+                } else {
+                  setTeamA([]);
+                  setTeamB([]);
+                }
+                setScoreA(0);
+                setScoreB(0);
+                setStep("players");
+              }}
+              className="flex flex-col items-center gap-3 rounded-xl border border-border p-6 transition-colors cursor-pointer hover:bg-card-hover hover:border-primary-600"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-600/20">
+                <Users className="h-7 w-7 text-primary-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-foreground">Times</p>
+                <p className="text-xs text-muted mt-1">Time A vs Time B</p>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setMode("individual");
+                setTeamA([]);
+                setTeamB([]);
+                setScoreA(0);
+                setScoreB(0);
+                if (user) {
+                  setIndividualPlayers([
+                    { user, score: 0, position: 1 },
+                  ]);
+                } else {
+                  setIndividualPlayers([]);
+                }
+                setStep("players");
+              }}
+              className="flex flex-col items-center gap-3 rounded-xl border border-border p-6 transition-colors cursor-pointer hover:bg-card-hover hover:border-primary-600"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-500/20">
+                <User className="h-7 w-7 text-accent-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-foreground">Individual</p>
+                <p className="text-xs text-muted mt-1">Cada um por si</p>
+              </div>
+            </button>
+          </div>
+
+          <Button variant="outline" size="lg" onClick={() => setStep("game")}>
+            Voltar
+          </Button>
+        </div>
+      )}
+
+      {/* STEP: Selecionar Jogadores — TIMES */}
+      {step === "players" && mode === "teams" && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectingFor("A")}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                selectingFor === "A"
+                  ? "bg-primary-600 text-white"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              Time A ({teamA.length})
+            </button>
+            <button
+              onClick={() => setSelectingFor("B")}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                selectingFor === "B"
+                  ? "bg-primary-600 text-white"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              Time B ({teamB.length})
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="min-h-25">
+              <p className="text-xs text-muted mb-2 font-medium">Time A</p>
+              {teamA.length === 0 ? (
+                <p className="text-xs text-neutral-600">Sem jogadores</p>
+              ) : (
+                <div className="space-y-2">
+                  {teamA.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <Avatar name={p.username} size="sm" />
+                      <span className="text-xs text-foreground flex-1 truncate">
+                        {p.username}
+                      </span>
+                      <button
+                        onClick={() => removePlayer(p.id, "A")}
+                        className="text-neutral-500 hover:text-loss cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="min-h-25">
+              <p className="text-xs text-muted mb-2 font-medium">Time B</p>
+              {teamB.length === 0 ? (
+                <p className="text-xs text-neutral-600">Sem jogadores</p>
+              ) : (
+                <div className="space-y-2">
+                  {teamB.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <Avatar name={p.username} size="sm" />
+                      <span className="text-xs text-foreground flex-1 truncate">
+                        {p.username}
+                      </span>
+                      <button
+                        onClick={() => removePlayer(p.id, "B")}
+                        className="text-neutral-500 hover:text-loss cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
+              <UserPlus className="h-3.5 w-3.5" />
+              Selecione para o Time {selectingFor}
+            </p>
+            <PlayerAutocomplete
+              onSelect={(player) => addPlayer(player)}
+              excludeIds={selectedIds}
+              placeholder={`Buscar jogador para o Time ${selectingFor}...`}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("mode")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canGoToScore}
+              onClick={() => setStep("score")}
+            >
+              Próximo: Placar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Selecionar Jogadores — INDIVIDUAL */}
+      {step === "players" && mode === "individual" && (
+        <div className="space-y-4">
+          {/* Jogadores adicionados */}
+          <Card className="min-h-25">
+            <p className="text-xs text-muted mb-2 font-medium">
+              Jogadores ({individualPlayers.length})
+            </p>
+            {individualPlayers.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum jogador adicionado</p>
+            ) : (
+              <div className="space-y-2">
+                {individualPlayers.map((p, idx) => (
+                  <div key={p.user.id} className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 w-5 text-center font-mono">
+                      {idx + 1}
+                    </span>
+                    <Avatar name={p.user.username} size="sm" />
+                    <span className="text-xs text-foreground flex-1 truncate">
+                      {p.user.username}
+                    </span>
+                    <button
+                      onClick={() => removeIndividualPlayer(p.user.id)}
+                      className="text-neutral-500 hover:text-loss cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Autocomplete para adicionar jogadores */}
+          <div>
+            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
+              <UserPlus className="h-3.5 w-3.5" />
+              Adicionar jogador
+            </p>
+            <PlayerAutocomplete
+              onSelect={(player) => addIndividualPlayer(player)}
+              excludeIds={selectedIds}
+              placeholder="Buscar jogador..."
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("mode")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canGoToScore}
+              onClick={() => setStep("score")}
+            >
+              Próximo: Placar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Placar — TIMES */}
+      {step === "score" && mode === "teams" && (
+        <div className="space-y-6">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center gap-3 flex-1">
+                <div className="flex -space-x-2">
+                  {teamA.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <span className="text-xs text-muted font-medium">Time A</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setScoreA(Math.max(0, scoreA - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreA}
+                    onChange={(e) => setScoreA(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => setScoreA(scoreA + 1)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <span className="text-2xl font-bold text-neutral-600">×</span>
+
+              <div className="flex flex-col items-center gap-3 flex-1">
+                <div className="flex -space-x-2">
+                  {teamB.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <span className="text-xs text-muted font-medium">Time B</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setScoreB(Math.max(0, scoreB - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreB}
+                    onChange={(e) => setScoreB(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => setScoreB(scoreB + 1)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => setStep("confirm")}
+              disabled={scoreA === scoreB}
+            >
+              Confirmar
+            </Button>
+          </div>
+
+          {scoreA === scoreB && scoreA > 0 && (
+            <p className="text-center text-xs text-loss">
+              Empate não é permitido. Defina um vencedor!
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* STEP: Placar — INDIVIDUAL */}
+      {step === "score" && mode === "individual" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-muted font-medium">Defina a pontuação de cada jogador</p>
+            <button
+              onClick={autoRankByScore}
+              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
+            >
+              <Trophy className="h-3 w-3" />
+              Ordenar por pontuação
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {individualPlayers.map((p, idx) => (
+              <Card key={p.user.id} className="p-3!">
+                <div className="flex items-center gap-3">
+                  {/* Position */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={() => movePosition(p.user.id, "up")}
+                      disabled={idx === 0}
+                      className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Minus className="h-3 w-3 rotate-0" />
+                    </button>
+                    <span
+                      className={`text-sm font-bold w-6 text-center ${
+                        p.position === 1
+                          ? "text-yellow-400"
+                          : p.position === 2
+                          ? "text-neutral-300"
+                          : p.position === 3
+                          ? "text-amber-600"
+                          : "text-neutral-500"
+                      }`}
+                    >
+                      {p.position}º
+                    </span>
+                    <button
+                      onClick={() => movePosition(p.user.id, "down")}
+                      disabled={idx === individualPlayers.length - 1}
+                      className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  {/* Player */}
+                  <Avatar name={p.user.username} size="sm" />
+                  <span className="text-sm text-foreground font-medium flex-1 truncate">
+                    {p.user.username}
+                  </span>
+
+                  {/* Score */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateIndividualScore(p.user.id, Math.max(0, p.score - 1))}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <input
+                      type="number"
+                      min={0}
+                      value={p.score}
+                      onChange={(e) => updateIndividualScore(p.user.id, Math.max(0, parseInt(e.target.value) || 0))}
+                      className="text-lg font-bold text-foreground w-12 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      onClick={() => updateIndividualScore(p.user.id, p.score + 1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => {
+                autoRankByScore();
+                setStep("confirm");
+              }}
+              disabled={!canConfirmIndividual}
+            >
+              Confirmar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Confirmação — TIMES */}
+      {step === "confirm" && mode === "teams" && (
+        <div className="space-y-6">
+          <Card>
+            <p className="text-xs text-muted mb-1 font-medium text-center">
+              {selectedGame?.name}
+            </p>
+            <p className="text-xs text-muted mb-4 font-medium text-center">
+              Resumo da Partida
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center gap-2 flex-1">
+                <div className="flex -space-x-2">
+                  {teamA.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <div className="text-center">
+                  {teamA.map((p) => (
+                    <p key={p.id} className="text-xs text-muted">
+                      {p.username}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 px-4">
+                <span
+                  className={`text-4xl font-bold ${
+                    scoreA > scoreB ? "text-win" : "text-neutral-400"
+                  }`}
+                >
+                  {scoreA}
+                </span>
+                <span className="text-neutral-600 text-xl">×</span>
+                <span
+                  className={`text-4xl font-bold ${
+                    scoreB > scoreA ? "text-win" : "text-neutral-400"
+                  }`}
+                >
+                  {scoreB}
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center gap-2 flex-1">
+                <div className="flex -space-x-2">
+                  {teamB.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <div className="text-center">
+                  {teamB.map((p) => (
+                    <p key={p.id} className="text-xs text-muted">
+                      {p.username}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {error && <p className="text-center text-xs text-loss">{error}</p>}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("score")}>
+              Voltar
+            </Button>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={handleConfirm}
+              disabled={submitting}
+            >
+              <Check className="h-5 w-5" />
+              {submitting ? "Salvando..." : "Salvar Partida"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Confirmação — INDIVIDUAL */}
+      {step === "confirm" && mode === "individual" && (
+        <div className="space-y-6">
+          <Card>
+            <p className="text-xs text-muted mb-1 font-medium text-center">
+              {selectedGame?.name}
+            </p>
+            <p className="text-xs text-muted mb-4 font-medium text-center">
+              Resultado Final
+            </p>
+            <div className="space-y-2">
+              {individualPlayers.map((p) => (
+                <div
+                  key={p.user.id}
+                  className={`flex items-center gap-3 rounded-lg p-2.5 ${
+                    p.position === 1 ? "bg-yellow-500/10" : ""
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-bold w-6 text-center ${
+                      p.position === 1
+                        ? "text-yellow-400"
+                        : p.position === 2
+                        ? "text-neutral-300"
+                        : p.position === 3
+                        ? "text-amber-600"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    {p.position}º
+                  </span>
+                  <Avatar name={p.user.username} size="sm" />
+                  <span className="text-sm text-foreground font-medium flex-1">
+                    {p.user.username}
+                  </span>
+                  <span className="text-sm font-bold text-foreground">{p.score} pts</span>
+                  {p.position === 1 && (
+                    <Trophy className="h-4 w-4 text-yellow-400" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {error && <p className="text-center text-xs text-loss">{error}</p>}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("score")}>
+              Voltar
+            </Button>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={handleConfirm}
+              disabled={submitting}
+            >
+              <Check className="h-5 w-5" />
+              {submitting ? "Salvando..." : "Salvar Partida"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </PageContainer>
+  );
+}
