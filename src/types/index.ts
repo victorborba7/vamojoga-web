@@ -7,7 +7,7 @@ export interface UserCreate {
 }
 
 export interface UserLogin {
-  email: string;
+  identifier: string; // e-mail ou username
   password: string;
 }
 

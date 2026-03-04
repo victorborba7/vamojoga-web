@@ -74,16 +74,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("token", res.access_token);
     const me = await getMe();
     setUser(me);
+    // Persist identity for "Bem-vindo de volta" UX on next login
+    localStorage.setItem("saved_identifier", data.identifier);
+    localStorage.setItem("saved_name", me.full_name || me.username);
     await refreshPendingCount();
   };
 
   const register = async (data: UserCreate) => {
     await apiRegister(data);
-    await login({ email: data.email, password: data.password });
+    await login({ identifier: data.email, password: data.password });
   };
 
   const logout = () => {
     localStorage.removeItem("token");
+    // Keep saved_identifier / saved_name so the login page can show "Bem-vindo de volta"
     setUser(null);
     setPendingFriendsCount(0);
   };

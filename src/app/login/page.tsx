@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { Zap } from "lucide-react";
@@ -14,18 +15,43 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [savedIdentifier, setSavedIdentifier] = useState<string | null>(null);
+  const [savedName, setSavedName] = useState<string | null>(null);
+  const [returning, setReturning] = useState(false);
+
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const id = localStorage.getItem("saved_identifier");
+    const n = localStorage.getItem("saved_name");
+    if (id) {
+      setSavedIdentifier(id);
+      setSavedName(n);
+      setIdentifier(id);
+      setReturning(true);
+    }
+  }, []);
+
+  function handleNotMe() {
+    localStorage.removeItem("saved_identifier");
+    localStorage.removeItem("saved_name");
+    setSavedIdentifier(null);
+    setSavedName(null);
+    setIdentifier("");
+    setPassword("");
+    setReturning(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login({ email, password });
-      router.push("/");
+      await login({ identifier: returning ? savedIdentifier! : identifier, password });
+      router.push("/collection");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -43,62 +69,113 @@ export default function LoginPage() {
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary-600/30">
           <Zap className="h-8 w-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
-        <p className="text-sm text-muted mb-6">Acesse sua conta VamoJoga</p>
 
-        <Card className="w-full max-w-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs text-muted mb-1 font-medium">
-                E-mail
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1 font-medium">
-                Senha
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
-                placeholder="••••••••"
-              />
-            </div>
+        {returning && savedName ? (
+          <>
+            <h1 className="text-2xl font-bold text-foreground mb-1">
+              Bem-vindo de volta!
+            </h1>
+            <p className="text-sm text-muted mb-6">Confirme sua senha para entrar</p>
 
-            {error && (
-              <p className="text-xs text-loss text-center">{error}</p>
-            )}
+            <Card className="w-full max-w-sm">
+              {/* Returning user identity */}
+              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-border">
+                <Avatar name={savedName} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{savedName}</p>
+                  <p className="text-xs text-muted truncate">{savedIdentifier}</p>
+                </div>
+                <button
+                  onClick={handleNotMe}
+                  className="text-xs text-primary-400 hover:text-primary-300 shrink-0 cursor-pointer"
+                >
+                  Não sou eu
+                </button>
+              </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              disabled={loading}
-            >
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-          </form>
-        </Card>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-muted mb-1 font-medium">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    autoFocus
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
 
-        <p className="mt-4 text-sm text-muted">
-          Não tem conta?{" "}
-          <Link
-            href="/register"
-            className="text-primary-400 hover:text-primary-300 font-medium"
-          >
-            Cadastre-se
-          </Link>
-        </p>
+                {error && (
+                  <p className="text-xs text-loss text-center">{error}</p>
+                )}
+
+                <Button type="submit" variant="primary" size="lg" disabled={loading}>
+                  {loading ? "Entrando..." : "Entrar"}
+                </Button>
+              </form>
+            </Card>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
+            <p className="text-sm text-muted mb-6">Acesse sua conta VamoJoga</p>
+
+            <Card className="w-full max-w-sm">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-muted mb-1 font-medium">
+                    E-mail ou nome de usuário
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
+                    placeholder="seu@email.com ou @usuario"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1 font-medium">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-xs text-loss text-center">{error}</p>
+                )}
+
+                <Button type="submit" variant="primary" size="lg" disabled={loading}>
+                  {loading ? "Entrando..." : "Entrar"}
+                </Button>
+              </form>
+            </Card>
+
+            <p className="mt-4 text-sm text-muted">
+              Não tem conta?{" "}
+              <Link
+                href="/register"
+                className="text-primary-400 hover:text-primary-300 font-medium"
+              >
+                Cadastre-se
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </PageContainer>
   );
