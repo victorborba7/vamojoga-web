@@ -13,6 +13,10 @@ import type {
   FriendResponse,
   LibraryEntryResponse,
   WishlistEntryResponse,
+  CollectionResponse,
+  CollectionDetailResponse,
+  CollectionJogoResponse,
+  MembroResponse,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -112,7 +116,7 @@ export async function getGame(gameId: string): Promise<GameResponse> {
   return request<GameResponse>(`/games/${gameId}`);
 }
 
-export async function searchGames(query: string, limit = 10): Promise<GameResponse[]> {
+export async function searchGames(query: string, limit = 20): Promise<GameResponse[]> {
   return request<GameResponse[]>(
     `/games/search/?q=${encodeURIComponent(query)}&limit=${limit}`
   );
@@ -256,4 +260,76 @@ export async function updateWishlistVisibility(
     method: "PATCH",
     body: JSON.stringify({ is_public: isPublic }),
   });
+}
+
+// ---- Collections ----
+
+export async function getMyCollections(): Promise<CollectionResponse[]> {
+  return request<CollectionResponse[]>("/collections/");
+}
+
+export async function createCollection(
+  name: string,
+  description?: string
+): Promise<CollectionDetailResponse> {
+  return request<CollectionDetailResponse>("/collections/", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export async function getCollection(id: string): Promise<CollectionDetailResponse> {
+  return request<CollectionDetailResponse>(`/collections/${id}`);
+}
+
+export async function updateCollection(
+  id: string,
+  data: { name?: string; description?: string }
+): Promise<CollectionDetailResponse> {
+  return request<CollectionDetailResponse>(`/collections/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCollection(id: string): Promise<void> {
+  await request(`/collections/${id}`, { method: "DELETE" });
+}
+
+export async function convidarMembro(
+  collectionId: string,
+  userId: string
+): Promise<MembroResponse> {
+  return request<MembroResponse>(`/collections/${collectionId}/membros`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export async function removerMembro(
+  collectionId: string,
+  userId: string
+): Promise<void> {
+  await request(`/collections/${collectionId}/membros/${userId}`, { method: "DELETE" });
+}
+
+export async function getJogosDisponiveis(collectionId: string): Promise<CollectionJogoResponse[]> {
+  return request<CollectionJogoResponse[]>(`/collections/${collectionId}/jogos-disponiveis`);
+}
+
+export async function addJogoCollection(
+  collectionId: string,
+  gameId: string
+): Promise<CollectionJogoResponse> {
+  return request<CollectionJogoResponse>(`/collections/${collectionId}/jogos`, {
+    method: "POST",
+    body: JSON.stringify({ game_id: gameId }),
+  });
+}
+
+export async function removeJogoCollection(
+  collectionId: string,
+  gameId: string
+): Promise<void> {
+  await request(`/collections/${collectionId}/jogos/${gameId}`, { method: "DELETE" });
 }

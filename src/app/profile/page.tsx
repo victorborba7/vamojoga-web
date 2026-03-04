@@ -120,7 +120,7 @@ export default function ProfilePage() {
 
       {/* Collection links */}
       <div className="space-y-2 mb-6">
-        <Link href="/collection">
+        <Link href="/library">
           <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/15 shrink-0">
               <BookOpen className="h-5 w-5 text-primary-400" />
@@ -135,7 +135,7 @@ export default function ProfilePage() {
           </Card>
         </Link>
 
-        <Link href="/collection?tab=wishlist">
+        <Link href="/library?tab=wishlist">
           <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-500/15 shrink-0">
               <Heart className="h-5 w-5 text-accent-400" />
@@ -167,7 +167,7 @@ export default function ProfilePage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{g.game_name}</p>
                       <p className="text-xs text-muted">
-                        {g.total_matches} {g.total_matches === 1 ? "partida" : "partidas"} · {Math.round(g.win_rate * 100)}% vitórias
+                        {g.total_matches} {g.total_matches === 1 ? "partida" : "partidas"} · {Math.round(g.win_rate)}% vitórias
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted shrink-0" />

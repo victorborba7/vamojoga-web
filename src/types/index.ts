@@ -36,8 +36,11 @@ export interface GameResponse {
   is_active: boolean;
   created_at: string;
   // BGG metadata
+  bgg_id: number | null;
   bgg_rank: number | null;
   bgg_rating: number | null;
+  bgg_avg_rating: number | null;
+  bgg_users_rated: number | null;
   subtitle: string | null;
   year: number | null;
   best_players: string | null;
@@ -46,6 +49,7 @@ export interface GameResponse {
   min_age: number | null;
   weight: number | null;
   bgg_type: string | null;
+  is_expansion: boolean;
 }
 
 export interface GameCreate {
@@ -151,4 +155,40 @@ export interface WishlistEntryResponse {
   is_public: boolean;
   added_at: string;
   friends_who_own: string[];
+}
+
+// ---- Collections ----
+export interface MembroResponse {
+  user_id: string;
+  username: string;
+  full_name: string | null;
+  role: string;
+  joined_at: string;
+}
+
+export interface CollectionJogoResponse {
+  game_id: string;
+  name: string;
+  bgg_id: number | null;
+  image_url: string | null;
+  bgg_rating: number | null;
+  year: number | null;
+  added_by: string;
+  added_by_username: string | null;
+  added_at: string;
+}
+
+export interface CollectionResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_id: string;
+  created_at: string;
+  member_count: number;
+  game_count: number;
+}
+
+export interface CollectionDetailResponse extends CollectionResponse {
+  members: MembroResponse[];
+  games: CollectionJogoResponse[];
 }
