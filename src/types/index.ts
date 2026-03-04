@@ -35,6 +35,17 @@ export interface GameResponse {
   max_players: number;
   is_active: boolean;
   created_at: string;
+  // BGG metadata
+  bgg_rank: number | null;
+  bgg_rating: number | null;
+  subtitle: string | null;
+  year: number | null;
+  best_players: string | null;
+  min_play_time: number | null;
+  max_play_time: number | null;
+  min_age: number | null;
+  weight: number | null;
+  bgg_type: string | null;
 }
 
 export interface GameCreate {
