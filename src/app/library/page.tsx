@@ -20,6 +20,7 @@ import {
   Gamepad2,
   LayoutList,
   LayoutGrid,
+  Filter,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -36,9 +37,11 @@ import {
 } from "@/lib/api";
 import type { LibraryEntryResponse, WishlistEntryResponse, GameResponse } from "@/types";
 import { cn } from "@/lib/utils";
+import { useDebouncedCallback } from "@/lib/hooks";
 
 type Tab = "library" | "wishlist";
 type ViewMode = "list" | "grid";
+type SortOrder = "recent" | "alpha" | "most_played";
 
 const PAGE_SIZE = 25;
 
@@ -64,24 +67,32 @@ function GameSearchInput({ onAdd, excludeIds, placeholder }: GameSearchInputProp
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [excludeExpansions, setExcludeExpansions] = useState(false);
+  const excludeExpansionsRef = useRef(excludeExpansions);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.trim().length < 1) { setResults([]); setIsOpen(false); return; }
     setLoading(true);
     try {
-      const games = await searchGames(q.trim());
+      const games = await searchGames(q.trim(), 20, excludeExpansionsRef.current);
       setResults(games.filter((g) => !excludeIds.has(g.id)));
       setIsOpen(true);
     } catch { setResults([]); }
     finally { setLoading(false); }
   }, [excludeIds]);
 
+  useEffect(() => {
+    excludeExpansionsRef.current = excludeExpansions;
+    if (query.trim().length >= 1) doSearch(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excludeExpansions]);
+
+  const triggerSearch = useDebouncedCallback(doSearch, 400);
+
   function handleChange(v: string) {
     setQuery(v);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(v), 250);
+    triggerSearch(v);
   }
 
   async function handlePick(game: GameResponse) {
@@ -123,6 +134,18 @@ function GameSearchInput({ onAdd, excludeIds, placeholder }: GameSearchInputProp
             <X className="h-4 w-4 text-muted" />
           </button>
         )}
+        <button
+          onClick={() => setExcludeExpansions((v) => !v)}
+          title={excludeExpansions ? "Mostrando apenas jogos base" : "Mostrando expansões também"}
+          className={`shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
+            excludeExpansions
+              ? "border-primary-400/60 text-primary-400 bg-primary-500/10"
+              : "border-white/10 text-muted hover:text-foreground"
+          }`}
+        >
+          <Filter className="h-2.5 w-2.5" />
+          sem exp.
+        </button>
       </div>
 
       {isOpen && results.length > 0 && (
@@ -170,6 +193,7 @@ function GameSearchInput({ onAdd, excludeIds, placeholder }: GameSearchInputProp
 interface PlayedGame {
   game_id: string;
   game_name: string;
+  image_url: string | null;
   match_count: number;
 }
 
@@ -183,9 +207,11 @@ function LibraryTab() {
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [filterQuery, setFilterQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recent");
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [entries.length]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [entries.length, filterQuery, sortOrder]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -226,7 +252,8 @@ function LibraryTab() {
         } else {
           gameMap.set(m.game_id, {
             game_id: m.game_id,
-            game_name: m.game_name,
+            game_name: m.game_name ?? "",
+            image_url: m.game_image_url ?? null,
             match_count: 1,
           });
         }
@@ -273,6 +300,15 @@ function LibraryTab() {
     } finally { setRemoving(null); }
   }
 
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (sortOrder === "alpha") return a.game.name.localeCompare(b.game.name);
+    if (sortOrder === "most_played") return b.match_count - a.match_count;
+    return 0;
+  });
+  const displayEntries = filterQuery.trim()
+    ? sortedEntries.filter((e) => e.game.name.toLowerCase().includes(filterQuery.toLowerCase()))
+    : sortedEntries;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -301,28 +337,63 @@ function LibraryTab() {
         </div>
       ) : (
         <>
-          {/* Count + view toggle */}
+          {/* Filtro local */}
+          <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-1.5">
+            <Search className="h-3.5 w-3.5 text-muted shrink-0" />
+            <input
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Filtrar na coleção..."
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
+            />
+            {filterQuery && (
+              <button onClick={() => setFilterQuery("")}>
+                <X className="h-3.5 w-3.5 text-muted" />
+              </button>
+            )}
+          </div>
+
+          {/* Ordenação + view toggle */}
           <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-muted">{entries.length} {entries.length === 1 ? "jogo" : "jogos"}</p>
             <div className="flex gap-1">
-              <button
-                onClick={() => toggleView("list")}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                <LayoutList className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => toggleView("grid")}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
+              {(["recent", "alpha", "most_played"] as SortOrder[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSortOrder(s)}
+                  className={`px-2 py-0.5 rounded-md text-xs transition-colors ${
+                    sortOrder === s ? "bg-white/10 text-foreground font-medium" : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  {s === "recent" ? "Recente" : s === "alpha" ? "A-Z" : "+ jogado"}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted">
+                {filterQuery ? `${displayEntries.length} de ${entries.length}` : `${entries.length} ${entries.length === 1 ? "jogo" : "jogos"}`}
+              </p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => toggleView("list")}
+                  className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+                >
+                  <LayoutList className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => toggleView("grid")}
+                  className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {viewMode === "list" ? (
+          {displayEntries.length === 0 ? (
+            <p className="text-sm text-muted text-center py-6">Nenhum jogo encontrado para &ldquo;{filterQuery}&rdquo;.</p>
+          ) : viewMode === "list" ? (
             <div className="space-y-2">
-              {entries.slice(0, visibleCount).map((entry) => (
+              {displayEntries.slice(0, visibleCount).map((entry) => (
                 <Card key={entry.id} className="flex items-center gap-3">
                   <Link href={`/games/${entry.game.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                     {entry.game.image_url ? (
@@ -350,7 +421,7 @@ function LibraryTab() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {entries.slice(0, visibleCount).map((entry) => (
+              {displayEntries.slice(0, visibleCount).map((entry) => (
                 <div key={entry.id} className="flex flex-col">
                   <Link href={`/games/${entry.game.id}`} className="block">
                     {entry.game.image_url ? (
@@ -375,7 +446,7 @@ function LibraryTab() {
             </div>
           )}
 
-          {visibleCount < entries.length && (
+          {visibleCount < displayEntries.length && (
             <div ref={sentinelRef} className="flex justify-center py-3">
               <div className="h-5 w-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
             </div>
@@ -383,46 +454,53 @@ function LibraryTab() {
         </>
       )}
 
-      {/* Played but not owned */}
+      {/* Played but not owned — suggestion shelf */}
       {playedNotOwned.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2 px-1">
-            Já jogou mas não possui ({playedNotOwned.length})
-          </p>
-          <div className="space-y-2">
+        <div className="rounded-2xl border border-primary-500/20 bg-primary-500/5 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Adicionar à coleção?
+            </p>
+            <p className="text-xs text-muted mt-0.5">
+              Você registrou partidas desses jogos mas eles não estão na sua biblioteca.
+            </p>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scroll-smooth">
             {playedNotOwned.map((played) => (
-              <Card key={played.game_id} className="flex items-center gap-3 p-3!">
-                <Link
-                  href={`/games/${played.game_id}`}
-                  className="flex items-center gap-3 flex-1 min-w-0"
-                >
-                  <div className="h-12 w-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <Gamepad2 className="h-6 w-6 text-muted" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {played.game_name}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {played.match_count}{" "}
-                      {played.match_count === 1 ? "partida" : "partidas"} registrada
-                      {played.match_count !== 1 ? "s" : ""}
-                    </p>
-                  </div>
+              <div
+                key={played.game_id}
+                className="flex-none w-32 snap-start flex flex-col items-center gap-2"
+              >
+                <Link href={`/games/${played.game_id}`} className="flex flex-col items-center gap-2 w-full">
+                  {played.image_url ? (
+                    <img src={played.image_url} alt={played.game_name} className="w-full aspect-square rounded-xl object-cover" />
+                  ) : (
+                    <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
+                      <Gamepad2 className="h-8 w-8 text-muted" />
+                    </div>
+                  )}
+                  <p className="text-xs font-medium text-foreground text-center line-clamp-2 leading-tight w-full">
+                    {played.game_name}
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    {played.match_count}× jogado
+                  </p>
                 </Link>
                 <button
                   onClick={() => handleAddFromHistory(played)}
                   disabled={addingHistory === played.game_id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500/15 text-primary-400 text-xs font-medium hover:bg-primary-500/25 transition-colors disabled:opacity-40 shrink-0 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-primary-500/20 text-primary-400 text-xs font-medium hover:bg-primary-500/30 transition-colors disabled:opacity-40"
                 >
                   {addingHistory === played.game_id ? (
-                    <div className="h-3.5 w-3.5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                    <div className="h-3 w-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
                   ) : (
-                    <Plus className="h-3.5 w-3.5" />
+                    <>
+                      <Plus className="h-3 w-3" />
+                      Adicionar
+                    </>
                   )}
-                  Adicionar
                 </button>
-              </Card>
+              </div>
             ))}
           </div>
         </div>

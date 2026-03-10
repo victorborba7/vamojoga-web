@@ -220,17 +220,17 @@ export default function GameDetailPage({ params }: Props) {
             {game.year && (
               <Badge variant="default">{game.year}</Badge>
             )}
-            {game.bgg_type && (
-              <Badge variant="default" className="capitalize">{game.bgg_type}</Badge>
+            {game.game_type && (
+              <Badge variant="default" className="capitalize">{game.game_type}</Badge>
             )}
-            {game.bgg_rank && (
-              <Badge variant="gold">#{game.bgg_rank} BGG</Badge>
+            {game.rank && (
+              <Badge variant="gold">#{game.rank} BGG</Badge>
             )}
           </div>
-          {game.bgg_rating && (
+          {game.bayes_rating && (
             <div className="flex items-center gap-1 mt-2">
               <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
-              <span className="text-sm font-semibold text-foreground">{game.bgg_rating.toFixed(1)}</span>
+              <span className="text-sm font-semibold text-foreground">{game.bayes_rating.toFixed(1)}</span>
               <span className="text-xs text-muted">/ 10 BGG</span>
             </div>
           )}

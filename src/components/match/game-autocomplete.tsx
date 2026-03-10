@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Search, X } from "lucide-react";
+import { Filter, Search, X } from "lucide-react";
 import { searchGames } from "@/lib/api";
+import { useDebouncedCallback } from "@/lib/hooks";
 import type { GameResponse } from "@/types";
 
 interface GameAutocompleteProps {
@@ -21,9 +22,10 @@ export function GameAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [excludeExpansions, setExcludeExpansions] = useState(false);
+  const excludeExpansionsRef = useRef(excludeExpansions);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.trim().length < 1) {
@@ -33,7 +35,7 @@ export function GameAutocomplete({
     }
     setLoading(true);
     try {
-      const games = await searchGames(q.trim());
+      const games = await searchGames(q.trim(), 20, excludeExpansionsRef.current);
       setResults(games);
       setIsOpen(games.length > 0);
       setHighlightIndex(-1);
@@ -44,10 +46,17 @@ export function GameAutocomplete({
     }
   }, []);
 
+  useEffect(() => {
+    excludeExpansionsRef.current = excludeExpansions;
+    if (query.trim().length >= 1) doSearch(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excludeExpansions]);
+
+  const triggerSearch = useDebouncedCallback(doSearch, 400);
+
   function handleChange(value: string) {
     setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(value), 250);
+    triggerSearch(value);
   }
 
   function handleSelect(game: GameResponse) {
@@ -141,14 +150,27 @@ export function GameAutocomplete({
             if (results.length > 0) setIsOpen(true);
           }}
           placeholder="Digite o nome do jogo..."
-          className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+          className="w-full rounded-xl border border-border bg-card pl-10 pr-24 py-3 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
           autoComplete="off"
         />
-        {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+          {loading && (
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-600 border-t-primary-500" />
-          </div>
-        )}
+          )}
+          <button
+            type="button"
+            onClick={() => setExcludeExpansions((v) => !v)}
+            title={excludeExpansions ? "Mostrando apenas jogos base" : "Mostrando expansões também"}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${
+              excludeExpansions
+                ? "border-primary-400/60 text-primary-400 bg-primary-500/10"
+                : "border-white/10 text-muted hover:text-foreground"
+            }`}
+          >
+            <Filter className="h-2.5 w-2.5" />
+            sem exp.
+          </button>
+        </div>
       </div>
 
       {/* Dropdown Results */}

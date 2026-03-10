@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Search } from "lucide-react";
 import { searchUsers } from "@/lib/api";
+import { useDebouncedCallback } from "@/lib/hooks";
 import { Avatar } from "@/components/ui/avatar";
 import type { UserResponse } from "@/types";
 
@@ -24,7 +25,6 @@ export function PlayerAutocomplete({
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const doSearch = useCallback(
     async (q: string) => {
@@ -49,10 +49,11 @@ export function PlayerAutocomplete({
     [excludeIds]
   );
 
+  const triggerSearch = useDebouncedCallback(doSearch, 400);
+
   function handleChange(value: string) {
     setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(value), 250);
+    triggerSearch(value);
   }
 
   function handleSelect(user: UserResponse) {

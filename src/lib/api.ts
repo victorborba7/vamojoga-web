@@ -116,9 +116,9 @@ export async function getGame(gameId: string): Promise<GameResponse> {
   return request<GameResponse>(`/games/${gameId}`);
 }
 
-export async function searchGames(query: string, limit = 20): Promise<GameResponse[]> {
+export async function searchGames(query: string, limit = 20, excludeExpansions = false): Promise<GameResponse[]> {
   return request<GameResponse[]>(
-    `/games/search/?q=${encodeURIComponent(query)}&limit=${limit}`
+    `/games/search/?q=${encodeURIComponent(query)}&limit=${limit}&exclude_expansions=${excludeExpansions}`
   );
 }
 

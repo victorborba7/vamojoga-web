@@ -37,10 +37,10 @@ export interface GameResponse {
   created_at: string;
   // BGG metadata
   bgg_id: number | null;
-  bgg_rank: number | null;
-  bgg_rating: number | null;
-  bgg_avg_rating: number | null;
-  bgg_users_rated: number | null;
+  rank: number | null;
+  bayes_rating: number | null;
+  avg_rating: number | null;
+  users_rated: number | null;
   subtitle: string | null;
   year: number | null;
   best_players: string | null;
@@ -48,8 +48,15 @@ export interface GameResponse {
   max_play_time: number | null;
   min_age: number | null;
   weight: number | null;
-  bgg_type: string | null;
+  game_type: string | null;
   is_expansion: boolean;
+  thumbnail_url: string | null;
+  playing_time: number | null;
+  last_bgg_sync_at: string | null;
+  mechanics: string[];
+  categories: string[];
+  designers: string[];
+  publishers: string[];
 }
 
 export interface GameCreate {
@@ -88,6 +95,7 @@ export interface MatchResponse {
   id: string;
   game_id: string;
   game_name: string | null;
+  game_image_url: string | null;
   created_by: string;
   played_at: string;
   notes: string | null;
@@ -171,7 +179,7 @@ export interface CollectionJogoResponse {
   name: string;
   bgg_id: number | null;
   image_url: string | null;
-  bgg_rating: number | null;
+  bayes_rating: number | null;
   year: number | null;
   added_by: string;
   added_by_username: string | null;

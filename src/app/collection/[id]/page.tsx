@@ -359,7 +359,7 @@ function GameRow({
         <p className="text-sm font-medium text-foreground truncate">{jogo.name}</p>
         <p className="text-xs text-muted">
           {jogo.year && `${jogo.year} · `}
-          {jogo.bgg_rating && `★ ${jogo.bgg_rating.toFixed(1)} · `}
+          {jogo.bayes_rating && `★ ${jogo.bayes_rating.toFixed(1)} · `}
           adicionado por {jogo.added_by_username ?? "?"}
         </p>
       </div>
@@ -393,7 +393,7 @@ function GameGridCard({
       <p className="text-xs font-semibold text-foreground truncate mt-2">{jogo.name}</p>
       <p className="text-[10px] text-muted">
         {jogo.year ? `${jogo.year} · ` : ""}
-        {jogo.bgg_rating ? `★ ${jogo.bgg_rating.toFixed(1)}` : ""}
+        {jogo.bayes_rating ? `★ ${jogo.bayes_rating.toFixed(1)}` : ""}
       </p>
       <p className="text-[10px] text-muted truncate">{jogo.added_by_username ?? "?"}</p>
       {canRemove && (
