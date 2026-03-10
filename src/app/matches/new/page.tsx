@@ -264,9 +264,9 @@ export default function NewMatchPage() {
       [userId]: {
         ...(prev[userId] || {}),
         [fieldId]: {
-          template_field_id: fieldId,
           ...(prev[userId]?.[fieldId] || {}),
           ...entry,
+          template_field_id: fieldId,
         },
       },
     }));
