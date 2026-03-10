@@ -112,11 +112,6 @@ export function GameAutocomplete({
           <p className="text-sm font-semibold text-foreground">
             {selectedGame.name}
           </p>
-          {selectedGame.description && (
-            <p className="text-xs text-muted mt-0.5">
-              {selectedGame.description}
-            </p>
-          )}
           <p className="text-xs text-neutral-500 mt-1">
             {selectedGame.min_players}-{selectedGame.max_players} jogadores
           </p>
@@ -190,11 +185,6 @@ export function GameAutocomplete({
                 <p className="text-sm font-semibold text-foreground">
                   {game.name}
                 </p>
-                {game.description && (
-                  <p className="text-xs text-muted mt-0.5 line-clamp-1">
-                    {game.description}
-                  </p>
-                )}
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {game.min_players}-{game.max_players} jogadores
                 </p>

@@ -7,15 +7,17 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy } from "lucide-react";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { createMatch, getScoringTemplatesByGame, getScoringTemplate, ApiError } from "@/lib/api";
+import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, ApiError } from "@/lib/api";
 import type {
   UserResponse,
   GameResponse,
   MatchPlayerCreate,
   ScoringTemplateListResponse,
   ScoringTemplateResponse,
+  ScoringTemplateFieldCreate,
+  ScoringFieldType,
   TemplateScoreEntry,
 } from "@/types";
 import { GameAutocomplete } from "@/components/match/game-autocomplete";
@@ -29,6 +31,27 @@ interface IndividualPlayer {
   score: number;
   position: number;
 }
+
+interface InlineFieldDraft {
+  key: number;
+  name: string;
+  field_type: ScoringFieldType;
+  min_value: string;
+  max_value: string;
+  is_required: boolean;
+  is_tiebreaker: boolean;
+}
+
+let inlineFieldKey = 0;
+function newInlineField(): InlineFieldDraft {
+  return { key: ++inlineFieldKey, name: "", field_type: "numeric", min_value: "", max_value: "", is_required: true, is_tiebreaker: false };
+}
+
+const FIELD_TYPE_OPTIONS: { value: ScoringFieldType; label: string; icon: typeof Hash }[] = [
+  { value: "numeric", label: "Numérico", icon: Hash },
+  { value: "ranking", label: "Ranking", icon: BarChart3 },
+  { value: "boolean", label: "Sim/Não", icon: ToggleLeft },
+];
 
 export default function NewMatchPage() {
   const { user, loading: authLoading } = useAuth();
@@ -61,6 +84,12 @@ export default function NewMatchPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Inline template creation
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateFields, setNewTemplateFields] = useState<InlineFieldDraft[]>([]);
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -252,6 +281,52 @@ export default function NewMatchPage() {
     setSelectedTemplate(null);
     setUseTemplate(false);
     setTemplateScores({});
+  }
+
+  function openCreateTemplate() {
+    setShowCreateTemplate(true);
+    setNewTemplateName("");
+    setNewTemplateFields([newInlineField()]);
+  }
+
+  async function handleCreateTemplateInline() {
+    if (!selectedGame || !newTemplateName.trim()) return;
+    for (const f of newTemplateFields) {
+      if (!f.name.trim()) {
+        setError("Todos os campos do template precisam ter um nome");
+        return;
+      }
+    }
+    setCreatingTemplate(true);
+    setError("");
+    const fields: ScoringTemplateFieldCreate[] = newTemplateFields.map((f, i) => ({
+      name: f.name.trim(),
+      field_type: f.field_type,
+      min_value: f.min_value !== "" ? Number(f.min_value) : null,
+      max_value: f.max_value !== "" ? Number(f.max_value) : null,
+      display_order: i,
+      is_required: f.is_required,
+      is_tiebreaker: f.is_tiebreaker,
+    }));
+    try {
+      const created = await createScoringTemplate({
+        game_id: selectedGame.id,
+        name: newTemplateName.trim(),
+        fields,
+      });
+      // Refresh list and auto-select
+      const templates = await getScoringTemplatesByGame(selectedGame.id);
+      setAvailableTemplates(templates);
+      setSelectedTemplate(created);
+      setUseTemplate(true);
+      setTemplateScores({});
+      setShowCreateTemplate(false);
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+      else setError("Erro ao criar template");
+    } finally {
+      setCreatingTemplate(false);
+    }
   }
 
   function updateTemplateScore(
@@ -743,38 +818,40 @@ export default function NewMatchPage() {
       {step === "score" && mode === "individual" && (
         <div className="space-y-4">
           {/* Template selector */}
-          {availableTemplates.length > 0 && (
-            <Card>
-              <p className="text-xs text-muted font-medium mb-2">Método de pontuação</p>
-              <div className="flex gap-2 mb-2">
-                <button
-                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                    !useTemplate
-                      ? "bg-primary-600 text-white"
-                      : "bg-neutral-800 text-neutral-400"
-                  }`}
-                  onClick={handleClearTemplate}
-                >
-                  Padrão
-                </button>
-                <button
-                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                    useTemplate
-                      ? "bg-primary-600 text-white"
-                      : "bg-neutral-800 text-neutral-400"
-                  }`}
-                  onClick={() => {
-                    if (!selectedTemplate && availableTemplates.length > 0) {
-                      handleSelectTemplate(availableTemplates[0].id);
-                    } else {
-                      setUseTemplate(true);
-                    }
-                  }}
-                >
-                  Template
-                </button>
-              </div>
-              {useTemplate && (
+          <Card>
+            <p className="text-xs text-muted font-medium mb-2">Método de pontuação</p>
+            <div className="flex gap-2 mb-2">
+              <button
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                  !useTemplate
+                    ? "bg-primary-600 text-white"
+                    : "bg-neutral-800 text-neutral-400"
+                }`}
+                onClick={() => { handleClearTemplate(); setShowCreateTemplate(false); }}
+              >
+                Padrão
+              </button>
+              <button
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                  useTemplate
+                    ? "bg-primary-600 text-white"
+                    : "bg-neutral-800 text-neutral-400"
+                }`}
+                onClick={() => {
+                  if (!selectedTemplate && availableTemplates.length > 0) {
+                    handleSelectTemplate(availableTemplates[0].id);
+                  } else if (availableTemplates.length === 0) {
+                    openCreateTemplate();
+                  } else {
+                    setUseTemplate(true);
+                  }
+                }}
+              >
+                Template
+              </button>
+            </div>
+            {useTemplate && availableTemplates.length > 0 && (
+              <div className="space-y-2">
                 <select
                   className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground focus:border-primary-600 focus:outline-none"
                   value={selectedTemplate?.id ?? ""}
@@ -786,7 +863,181 @@ export default function NewMatchPage() {
                     </option>
                   ))}
                 </select>
-              )}
+                {!showCreateTemplate && (
+                  <button
+                    onClick={openCreateTemplate}
+                    className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Criar novo template
+                  </button>
+                )}
+              </div>
+            )}
+            {!useTemplate && !showCreateTemplate && (
+              <button
+                onClick={openCreateTemplate}
+                className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer mt-1"
+              >
+                <Plus className="h-3 w-3" />
+                Criar template para este jogo
+              </button>
+            )}
+          </Card>
+
+          {/* Inline template creation */}
+          {showCreateTemplate && (
+            <Card className="border-primary-600/30 bg-primary-600/5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-foreground">Novo Template</p>
+                <button
+                  onClick={() => setShowCreateTemplate(false)}
+                  className="text-neutral-400 hover:text-foreground p-1 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <input
+                className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none mb-3"
+                placeholder="Nome do template"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+              />
+
+              <div className="space-y-2">
+                {newTemplateFields.map((f, idx) => (
+                  <div key={f.key} className="rounded-lg border border-border bg-neutral-800/50 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <GripVertical size={14} className="text-muted" />
+                      <span className="text-[10px] text-muted">Campo {idx + 1}</span>
+                      <div className="flex-1" />
+                      {newTemplateFields.length > 1 && (
+                        <button
+                          className="text-red-400 hover:text-red-300 p-0.5 cursor-pointer"
+                          onClick={() => setNewTemplateFields((prev) => prev.filter((x) => x.key !== f.key))}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      className="w-full rounded-md border border-border bg-neutral-800 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                      placeholder="Nome do campo (ex: Pontos de Vitória)"
+                      value={f.name}
+                      onChange={(e) =>
+                        setNewTemplateFields((prev) =>
+                          prev.map((x) => (x.key === f.key ? { ...x, name: e.target.value } : x))
+                        )
+                      }
+                    />
+
+                    <div className="flex gap-1.5">
+                      {FIELD_TYPE_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                          <button
+                            key={opt.value}
+                            className={`flex-1 flex items-center justify-center gap-1 rounded-md border px-1.5 py-1.5 text-[10px] font-medium transition-colors cursor-pointer ${
+                              f.field_type === opt.value
+                                ? "border-primary-600 bg-primary-600/10 text-primary-400"
+                                : "border-border text-muted hover:text-foreground"
+                            }`}
+                            onClick={() =>
+                              setNewTemplateFields((prev) =>
+                                prev.map((x) => (x.key === f.key ? { ...x, field_type: opt.value } : x))
+                              )
+                            }
+                          >
+                            <Icon size={11} />
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {f.field_type === "numeric" && (
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          className="flex-1 rounded-md border border-border bg-neutral-800 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                          placeholder="Min"
+                          value={f.min_value}
+                          onChange={(e) =>
+                            setNewTemplateFields((prev) =>
+                              prev.map((x) => (x.key === f.key ? { ...x, min_value: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <input
+                          type="number"
+                          className="flex-1 rounded-md border border-border bg-neutral-800 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                          placeholder="Max"
+                          value={f.max_value}
+                          onChange={(e) =>
+                            setNewTemplateFields((prev) =>
+                              prev.map((x) => (x.key === f.key ? { ...x, max_value: e.target.value } : x))
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="accent-primary-600"
+                          checked={f.is_required}
+                          onChange={(e) =>
+                            setNewTemplateFields((prev) =>
+                              prev.map((x) => (x.key === f.key ? { ...x, is_required: e.target.checked } : x))
+                            )
+                          }
+                        />
+                        <span className="text-[10px] text-muted">Obrigatório</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="accent-amber-500"
+                          checked={f.is_tiebreaker}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewTemplateFields((prev) =>
+                                prev.map((x) => ({ ...x, is_tiebreaker: x.key === f.key }))
+                              );
+                            } else {
+                              setNewTemplateFields((prev) =>
+                                prev.map((x) => (x.key === f.key ? { ...x, is_tiebreaker: false } : x))
+                              );
+                            }
+                          }}
+                        />
+                        <span className="text-[10px] text-amber-400">Desempate</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between mt-3">
+                <button
+                  onClick={() => setNewTemplateFields((prev) => [...prev, newInlineField()])}
+                  className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
+                >
+                  <Plus className="h-3 w-3" />
+                  Adicionar campo
+                </button>
+                <Button
+                  size="sm"
+                  onClick={handleCreateTemplateInline}
+                  disabled={creatingTemplate || !newTemplateName.trim() || newTemplateFields.length === 0}
+                >
+                  {creatingTemplate ? "Criando..." : "Criar e usar"}
+                </Button>
+              </div>
             </Card>
           )}
 
@@ -971,6 +1222,12 @@ export default function NewMatchPage() {
                 Ou clique em &quot;Confirmar&quot; para manter o empate.
               </p>
             </Card>
+          )}
+
+          {error && (
+            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
           )}
 
           <div className="flex gap-3">
