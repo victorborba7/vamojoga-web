@@ -957,33 +957,6 @@ export default function NewMatchPage() {
                       })}
                     </div>
 
-                    {f.field_type === "numeric" && (
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          className="flex-1 rounded-md border border-border bg-neutral-800 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
-                          placeholder="Min"
-                          value={f.min_value}
-                          onChange={(e) =>
-                            setNewTemplateFields((prev) =>
-                              prev.map((x) => (x.key === f.key ? { ...x, min_value: e.target.value } : x))
-                            )
-                          }
-                        />
-                        <input
-                          type="number"
-                          className="flex-1 rounded-md border border-border bg-neutral-800 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
-                          placeholder="Max"
-                          value={f.max_value}
-                          onChange={(e) =>
-                            setNewTemplateFields((prev) =>
-                              prev.map((x) => (x.key === f.key ? { ...x, max_value: e.target.value } : x))
-                            )
-                          }
-                        />
-                      </div>
-                    )}
-
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input

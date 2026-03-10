@@ -472,41 +472,7 @@ export default function ScoringTemplatesPage() {
                     })}
                   </div>
 
-                  {/* Min/Max (only for numeric) */}
-                  {f.field_type === "numeric" && (
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="text-xs text-muted mb-1 block">
-                          Mínimo (opcional)
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
-                          placeholder="—"
-                          value={f.min_value}
-                          onChange={(e) =>
-                            updateField(f.key, { min_value: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-muted mb-1 block">
-                          Máximo (opcional)
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
-                          placeholder="—"
-                          value={f.max_value}
-                          onChange={(e) =>
-                            updateField(f.key, { max_value: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Required toggle */}
+                  {/* Required toggle */
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
