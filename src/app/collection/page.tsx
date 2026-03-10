@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMyCollections, createCollection } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import { useAuthGuard } from "@/lib/hooks";
 import type { CollectionResponse } from "@/types";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export default function CollectionsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuthGuard();
   const router = useRouter();
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,11 +22,12 @@ export default function CollectionsPage() {
   const [formDesc, setFormDesc] = useState("");
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) return;
     getMyCollections()
       .then(setCollections)
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, authLoading]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

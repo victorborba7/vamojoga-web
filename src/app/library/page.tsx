@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 import {
   BookOpen,
   Heart,
@@ -37,7 +37,7 @@ import {
 } from "@/lib/api";
 import type { LibraryEntryResponse, WishlistEntryResponse, GameResponse } from "@/types";
 import { cn } from "@/lib/utils";
-import { useDebouncedCallback } from "@/lib/hooks";
+import { useDebouncedCallback, useAuthGuard, useInfiniteScroll } from "@/lib/hooks";
 
 type Tab = "library" | "wishlist";
 type ViewMode = "list" | "grid";
@@ -312,7 +312,7 @@ function LibraryTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+        <Spinner />
       </div>
     );
   }
@@ -448,7 +448,7 @@ function LibraryTab() {
 
           {visibleCount < displayEntries.length && (
             <div ref={sentinelRef} className="flex justify-center py-3">
-              <div className="h-5 w-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+              <Spinner size="md" />
             </div>
           )}
         </>
@@ -582,7 +582,7 @@ function WishlistTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+        <Spinner />
       </div>
     );
   }
@@ -715,7 +715,7 @@ function WishlistTab() {
 
           {visibleCount < entries.length && (
             <div ref={sentinelRef} className="flex justify-center py-3">
-              <div className="h-5 w-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+              <Spinner size="md" />
             </div>
           )}
         </>
@@ -727,26 +727,20 @@ function WishlistTab() {
 // ---------- Page ----------
 
 export default function CollectionPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuthGuard();
   const [tab, setTab] = useState<Tab>("library");
 
   // Read ?tab=wishlist from URL on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("tab") === "wishlist") setTab("wishlist");
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("tab") === "wishlist") setTab("wishlist");
   }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) router.push("/login");
-  }, [user, authLoading, router]);
 
   if (authLoading || !user) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+          <Spinner />
         </div>
       </PageContainer>
     );

@@ -8,22 +8,24 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { StatsGrid } from "@/components/ui/stats-grid";
+import { TopGamesList } from "@/components/ui/top-games-list";
 import {
   BookOpen,
   Heart,
-  Trophy,
-  Sword,
-  Percent,
   LogOut,
   ChevronRight,
   CalendarDays,
 } from "lucide-react";
+import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { getUserStats, getMyLibrary, getMyWishlist } from "@/lib/api";
 import type { UserStats } from "@/types";
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading } = useAuthGuard();
+  const { logout } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [libraryCount, setLibraryCount] = useState(0);
@@ -32,7 +34,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) return;
 
     Promise.all([
       getUserStats(user.id),
@@ -57,7 +59,7 @@ export default function ProfilePage() {
     return (
       <PageContainer>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+          <Spinner />
         </div>
       </PageContainer>
     );
@@ -90,33 +92,7 @@ export default function ProfilePage() {
       </Card>
 
       {/* Stats */}
-      {loading ? (
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="rounded-2xl bg-card border border-border p-4 h-20 animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Card className="flex flex-col items-center justify-center text-center p-3">
-            <Sword className="h-5 w-5 text-primary-400 mb-1" />
-            <p className="text-xl font-bold text-foreground">{stats?.total_matches ?? 0}</p>
-            <p className="text-[10px] text-muted">Partidas</p>
-          </Card>
-          <Card className="flex flex-col items-center justify-center text-center p-3">
-            <Trophy className="h-5 w-5 text-yellow-400 mb-1" />
-            <p className="text-xl font-bold text-foreground">{stats?.total_wins ?? 0}</p>
-            <p className="text-[10px] text-muted">Vitórias</p>
-          </Card>
-          <Card className="flex flex-col items-center justify-center text-center p-3">
-            <Percent className="h-5 w-5 text-accent-400 mb-1" />
-            <p className="text-xl font-bold text-foreground">
-              {stats ? Math.round(stats.win_rate) : 0}%
-            </p>
-            <p className="text-[10px] text-muted">Win rate</p>
-          </Card>
-        </div>
-      )}
+      <StatsGrid stats={stats} loading={loading} />
 
       {/* Collection links */}
       <div className="space-y-2 mb-6">
@@ -152,30 +128,12 @@ export default function ProfilePage() {
       </div>
 
       {/* Top games by matches */}
-      {!loading && stats && stats.matches_by_game.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2 px-1">
-            Jogos mais jogados
-          </p>
-          <div className="space-y-2">
-            {stats.matches_by_game
-              .sort((a, b) => b.total_matches - a.total_matches)
-              .slice(0, 5)
-              .map((g) => (
-                <Link key={g.game_id} href={`/games/${g.game_id}`}>
-                  <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{g.game_name}</p>
-                      <p className="text-xs text-muted">
-                        {g.total_matches} {g.total_matches === 1 ? "partida" : "partidas"} · {Math.round(g.win_rate)}% vitórias
-                      </p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted shrink-0" />
-                  </Card>
-                </Link>
-              ))}
-          </div>
-        </div>
+      {!loading && stats && (
+        <TopGamesList
+          games={[...stats.matches_by_game]
+            .sort((a, b) => b.total_matches - a.total_matches)
+            .slice(0, 5)}
+        />
       )}
 
       {/* Logout */}

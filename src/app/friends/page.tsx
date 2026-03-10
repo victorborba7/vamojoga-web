@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   UserPlus,
   Check,
@@ -18,6 +18,7 @@ import {
   UserMinus,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 import {
   getFriends,
@@ -35,8 +36,8 @@ import type { FriendResponse, FriendshipResponse, UserResponse } from "@/types";
 type Tab = "friends" | "pending" | "add";
 
 export default function FriendsPage() {
-  const { user, loading: authLoading, refreshPendingCount } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuthGuard();
+  const { refreshPendingCount } = useAuth();
   const [tab, setTab] = useState<Tab>("friends");
   const [friends, setFriends] = useState<FriendResponse[]>([]);
   const [pendingReceived, setPendingReceived] = useState<FriendshipResponse[]>([]);
@@ -69,12 +70,9 @@ export default function FriendsPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return;
     loadData();
-  }, [user, authLoading, router, loadData]);
+  }, [user, authLoading, loadData]);
 
   async function handleSearch(q: string) {
     setSearchQuery(q);
@@ -219,14 +217,11 @@ export default function FriendsPage() {
       {tab === "friends" && (
         <div className="space-y-3">
           {friends.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Users className="h-12 w-12 text-neutral-600 mb-3" />
-              <p className="text-lg font-semibold text-neutral-400">
-                Nenhum amigo ainda
-              </p>
-              <p className="mt-1 text-sm text-neutral-500">
-                Adicione amigos para jogar junto!
-              </p>
+            <EmptyState
+              icon={Users}
+              label="Nenhum amigo ainda"
+              sublabel="Adicione amigos para jogar junto!"
+            >
               <Button
                 variant="primary"
                 size="lg"
@@ -236,7 +231,7 @@ export default function FriendsPage() {
                 <UserPlus className="h-4 w-4" />
                 Adicionar amigo
               </Button>
-            </div>
+            </EmptyState>
           ) : (
             friends.map((friend) => (
               <Card key={friend.user_id} className="p-3!">

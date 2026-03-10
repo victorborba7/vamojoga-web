@@ -9,13 +9,13 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trophy, ArrowLeft, Calendar, Clock, Users } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuthGuard } from "@/lib/hooks";
 import { getMatch } from "@/lib/api";
 import type { MatchResponse, MatchPlayerResponse } from "@/types";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuthGuard();
   const router = useRouter();
   const [match, setMatch] = useState<MatchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,10 +23,7 @@ export default function MatchDetailPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return;
     if (!id) return;
 
     getMatch(id)

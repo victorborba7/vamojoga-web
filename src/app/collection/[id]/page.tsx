@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   getCollection, updateCollection, deleteCollection,
-  convidarMembro, removerMembro,
-  addJogoCollection, removeJogoCollection,
-  getJogosDisponiveis,
+  inviteMember, removeMember,
+  addGameToCollection, removeGameFromCollection,
+  getAvailableGames,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { CollectionDetailResponse, CollectionJogoResponse, MembroResponse, UserResponse } from "@/types";
@@ -15,10 +15,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
+import { useInfiniteScroll } from "@/lib/hooks";
 import { LayoutList, LayoutGrid, Gamepad2 } from "lucide-react";
 
-type Tab = "jogos" | "membros";
+type Tab = "games" | "members";
 type ViewMode = "list" | "grid";
 
 const PAGE_SIZE = 25;
@@ -35,7 +37,7 @@ export default function CollectionDetailPage() {
 
   const [collection, setCollection] = useState<CollectionDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("jogos");
+  const [tab, setTab] = useState<Tab>("games");
 
   // adicionar jogo
   const [addingGame, setAddingGame] = useState(false);
@@ -45,21 +47,8 @@ export default function CollectionDetailPage() {
 
   // view mode + pagination for games list
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [collection?.games.length]);
-
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) setVisibleCount((v) => v + PAGE_SIZE); },
-      { threshold: 0 }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [visibleCount, collection?.games.length]);
+  const { visibleCount } = useInfiniteScroll(sentinelRef, collection?.games.length ?? 0, PAGE_SIZE);
 
   function toggleView(mode: ViewMode) {
     setViewMode(mode);
@@ -77,7 +66,7 @@ export default function CollectionDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([getCollection(id), getJogosDisponiveis(id)])
+    Promise.all([getCollection(id), getAvailableGames(id)])
       .then(([data, games]) => {
         setCollection(data);
         setAvailableGames(games);
@@ -91,7 +80,7 @@ export default function CollectionDetailPage() {
     if (!selectedGameId || !collection) return;
     setAddingGame(true);
     try {
-      const jogo = await addJogoCollection(collection.id, selectedGameId);
+      const jogo = await addGameToCollection(collection.id, selectedGameId);
       setCollection((a) => a ? { ...a, games: [...a.games, jogo], game_count: a.game_count + 1 } : a);
       setAvailableGames((prev) => prev.filter((g) => g.game_id !== selectedGameId));
       setSelectedGameId(null);
@@ -103,7 +92,7 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveGame(gameId: string) {
     if (!collection) return;
-    await removeJogoCollection(collection.id, gameId);
+    await removeGameFromCollection(collection.id, gameId);
     setCollection((a) => a ? { ...a, games: a.games.filter((g) => g.game_id !== gameId), game_count: a.game_count - 1 } : a);
   }
 
@@ -111,7 +100,7 @@ export default function CollectionDetailPage() {
     if (!selectedUser || !collection) return;
     setInviting(true);
     try {
-      const membro = await convidarMembro(collection.id, selectedUser.id);
+      const membro = await inviteMember(collection.id, selectedUser.id);
       setCollection((a) => a ? { ...a, members: [...a.members, membro], member_count: a.member_count + 1 } : a);
       setSelectedUser(null);
     } finally {
@@ -121,7 +110,7 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveMember(userId: string) {
     if (!collection) return;
-    await removerMembro(collection.id, userId);
+    await removeMember(collection.id, userId);
     setCollection((a) => a ? { ...a, members: a.members.filter((m) => m.user_id !== userId), member_count: a.member_count - 1 } : a);
   }
 
@@ -190,7 +179,7 @@ export default function CollectionDetailPage() {
 
         {/* Tabs */}
         <div className="flex rounded-xl overflow-hidden border border-white/10">
-          {(["jogos", "membros"] as Tab[]).map((t) => (
+          {(["games", "members"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -198,13 +187,13 @@ export default function CollectionDetailPage() {
                 tab === t ? "bg-primary text-white" : "bg-white/5 text-muted"
               }`}
             >
-              {t === "jogos" ? `Jogos (${collection.game_count})` : `Membros (${collection.member_count})`}
+              {t === "games" ? `Jogos (${collection.game_count})` : `Membros (${collection.member_count})`}
             </button>
           ))}
         </div>
 
         {/* Jogos tab */}
-        {tab === "jogos" && (
+        {tab === "games" && (
           <div className="space-y-3">
             {/* Adicionar jogo */}
             <Card className="p-3 space-y-2">
@@ -297,7 +286,7 @@ export default function CollectionDetailPage() {
 
                 {visibleCount < collection.games.length && (
                   <div ref={sentinelRef} className="flex justify-center py-3">
-                    <div className="h-5 w-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                    <Spinner size="md" />
                   </div>
                 )}
               </>
@@ -306,7 +295,7 @@ export default function CollectionDetailPage() {
         )}
 
         {/* Membros tab */}
-        {tab === "membros" && (
+        {tab === "members" && (
           <div className="space-y-3">
             {/* Convidar (só dono) */}
             {isOwner && (

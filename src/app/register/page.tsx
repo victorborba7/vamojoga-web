@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { Zap } from "lucide-react";
@@ -59,12 +60,11 @@ export default function RegisterPage() {
               <label className="block text-xs text-muted mb-1 font-medium">
                 Nome de usuário
               </label>
-              <input
+              <Input
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
                 placeholder="jogador123"
               />
             </div>
@@ -72,11 +72,10 @@ export default function RegisterPage() {
               <label className="block text-xs text-muted mb-1 font-medium">
                 Nome completo
               </label>
-              <input
+              <Input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
                 placeholder="João Silva"
               />
             </div>
@@ -84,12 +83,11 @@ export default function RegisterPage() {
               <label className="block text-xs text-muted mb-1 font-medium">
                 E-mail
               </label>
-              <input
+              <Input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
                 placeholder="seu@email.com"
               />
             </div>
@@ -97,12 +95,11 @@ export default function RegisterPage() {
               <label className="block text-xs text-muted mb-1 font-medium">
                 Senha
               </label>
-              <input
+              <Input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-border bg-neutral-900 px-4 py-2.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-primary-500 focus:outline-none"
                 placeholder="••••••••"
               />
             </div>

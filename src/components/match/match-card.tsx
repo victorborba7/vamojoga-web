@@ -26,7 +26,7 @@ export function MatchCard({ match }: MatchCardProps) {
 
   // Detect individual mode: all positions are distinct
   const positions = match.players.map((p) => p.position);
-  const isIndividual = new Set(positions).size === match.players.length && match.players.length > 2;
+  const isIndividual = new Set(positions).size === match.players.length;
 
   // For teams: use the score from the first player of each side
   const winnerScore = winners[0]?.score ?? 0;

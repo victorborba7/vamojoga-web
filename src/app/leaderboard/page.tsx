@@ -4,29 +4,24 @@ import { useEffect, useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { RankingRow } from "@/components/leaderboard/ranking-row";
-import { useAuth } from "@/lib/auth-context";
+import { useAuthGuard } from "@/lib/hooks";
 import { getGlobalRanking } from "@/lib/api";
 import type { RankingEntry } from "@/types";
-import { useRouter } from "next/navigation";
 
 export default function LeaderboardPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuthGuard();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return;
 
     getGlobalRanking()
       .then(setRanking)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   if (authLoading || loading) {
     return (

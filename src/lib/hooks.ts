@@ -1,4 +1,48 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+
+/**
+ * Auth guard: redireciona para /login quando não autenticado.
+ * Retorna { user, loading } para que a página possa renderizar spinner enquanto loading.
+ */
+export function useAuthGuard() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) router.push("/login");
+  }, [user, loading, router]);
+
+  return { user, loading };
+}
+
+/**
+ * Infinite scroll com IntersectionObserver.
+ * Incrementa `visibleCount` em `pageSize` quando o sentinel entra em tela.
+ */
+export function useInfiniteScroll(
+  sentinelRef: RefObject<HTMLElement | null>,
+  totalCount: number,
+  pageSize = 25,
+) {
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+
+  useEffect(() => { setVisibleCount(pageSize); }, [totalCount, pageSize]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setVisibleCount((v) => v + pageSize); },
+      { threshold: 0 },
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [sentinelRef, visibleCount, totalCount, pageSize]);
+
+  return { visibleCount };
+}
 
 /**
  * Retorna o valor atualizado somente após `delay` ms sem novas mudanças.

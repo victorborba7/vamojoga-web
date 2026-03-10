@@ -6,17 +6,15 @@ import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
+import { StatsGrid } from "@/components/ui/stats-grid";
+import { TopGamesList } from "@/components/ui/top-games-list";
 import {
   BookOpen,
   Heart,
-  Trophy,
-  Sword,
-  Percent,
   CalendarDays,
   ChevronLeft,
-  ChevronRight,
   Package,
-  Star,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -55,6 +53,7 @@ export default function FriendDetailPage({
   const [myLibraryIds, setMyLibraryIds] = useState<Set<string>>(new Set());
   const [myWishlistIds, setMyWishlistIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("library");
 
@@ -89,7 +88,7 @@ export default function FriendDetailPage({
     return (
       <PageContainer>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+          <Spinner />
         </div>
       </PageContainer>
     );
@@ -152,60 +151,10 @@ export default function FriendDetailPage({
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Card className="flex flex-col items-center justify-center text-center p-3">
-          <Sword className="h-5 w-5 text-primary-400 mb-1" />
-          <p className="text-xl font-bold text-foreground">
-            {stats?.total_matches ?? 0}
-          </p>
-          <p className="text-[10px] text-muted">Partidas</p>
-        </Card>
-        <Card className="flex flex-col items-center justify-center text-center p-3">
-          <Trophy className="h-5 w-5 text-yellow-400 mb-1" />
-          <p className="text-xl font-bold text-foreground">
-            {stats?.total_wins ?? 0}
-          </p>
-          <p className="text-[10px] text-muted">Vitórias</p>
-        </Card>
-        <Card className="flex flex-col items-center justify-center text-center p-3">
-          <Percent className="h-5 w-5 text-accent-400 mb-1" />
-          <p className="text-xl font-bold text-foreground">
-            {stats ? Math.round(stats.win_rate) : 0}%
-          </p>
-          <p className="text-[10px] text-muted">Win rate</p>
-        </Card>
-      </div>
+      <StatsGrid stats={stats} />
 
       {/* Top games */}
-      {topGames.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2 px-1">
-            Jogos mais jogados
-          </p>
-          <div className="space-y-2">
-            {topGames.map((g) => (
-              <Link key={g.game_id} href={`/games/${g.game_id}`}>
-                <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/10 shrink-0">
-                    <Star className="h-4 w-4 text-primary-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {g.game_name}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {g.total_matches}{" "}
-                      {g.total_matches === 1 ? "partida" : "partidas"} ·{" "}
-                      {Math.round(g.win_rate * 100)}% vitórias
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted shrink-0" />
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      <TopGamesList games={topGames} showIcon />
 
       {/* Collection tabs */}
       <div className="flex gap-2 mb-4">
@@ -234,6 +183,8 @@ export default function FriendDetailPage({
           <span className="ml-1 text-xs opacity-70">({wishlist.length})</span>
         </button>
       </div>
+
+      {actionError && <p className="text-xs text-red-400 mb-2 px-1">{actionError}</p>}
 
       {/* Library tab */}
       {tab === "library" && (
@@ -288,7 +239,7 @@ export default function FriendDetailPage({
                             await removeFromWishlist(gid);
                             setMyWishlistIds((s) => { const n = new Set(s); n.delete(gid); return n; });
                           }
-                        } catch {}
+                        } catch { setActionError("Erro ao atualizar biblioteca."); }
                         setActionLoading(null);
                       }}
                       className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -307,7 +258,7 @@ export default function FriendDetailPage({
                         try {
                           await addToWishlist(gid, true);
                           setMyWishlistIds((s) => new Set(s).add(gid));
-                        } catch {}
+                        } catch { setActionError("Erro ao atualizar wishlist."); }
                         setActionLoading(null);
                       }}
                       className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -386,7 +337,7 @@ export default function FriendDetailPage({
                             await removeFromWishlist(gid);
                             setMyWishlistIds((s) => { const n = new Set(s); n.delete(gid); return n; });
                           }
-                        } catch {}
+                        } catch { setActionError("Erro ao atualizar biblioteca."); }
                         setActionLoading(null);
                       }}
                       className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -405,7 +356,7 @@ export default function FriendDetailPage({
                         try {
                           await addToWishlist(gid, true);
                           setMyWishlistIds((s) => new Set(s).add(gid));
-                        } catch {}
+                        } catch { setActionError("Erro ao atualizar wishlist."); }
                         setActionLoading(null);
                       }}
                       className={`p-1.5 rounded-lg transition-colors cursor-pointer ${

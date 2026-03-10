@@ -296,7 +296,7 @@ export async function deleteCollection(id: string): Promise<void> {
   await request(`/collections/${id}`, { method: "DELETE" });
 }
 
-export async function convidarMembro(
+export async function inviteMember(
   collectionId: string,
   userId: string
 ): Promise<MembroResponse> {
@@ -306,18 +306,18 @@ export async function convidarMembro(
   });
 }
 
-export async function removerMembro(
+export async function removeMember(
   collectionId: string,
   userId: string
 ): Promise<void> {
   await request(`/collections/${collectionId}/membros/${userId}`, { method: "DELETE" });
 }
 
-export async function getJogosDisponiveis(collectionId: string): Promise<CollectionJogoResponse[]> {
+export async function getAvailableGames(collectionId: string): Promise<CollectionJogoResponse[]> {
   return request<CollectionJogoResponse[]>(`/collections/${collectionId}/jogos-disponiveis`);
 }
 
-export async function addJogoCollection(
+export async function addGameToCollection(
   collectionId: string,
   gameId: string
 ): Promise<CollectionJogoResponse> {
@@ -327,7 +327,7 @@ export async function addJogoCollection(
   });
 }
 
-export async function removeJogoCollection(
+export async function removeGameFromCollection(
   collectionId: string,
   gameId: string
 ): Promise<void> {
