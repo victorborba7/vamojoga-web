@@ -73,13 +73,24 @@ export interface MatchPlayerCreate {
   position: number;
   score: number;
   is_winner: boolean;
+  template_scores?: TemplateScoreEntry[];
 }
 
 export interface MatchCreate {
   game_id: string;
   played_at?: string;
   notes?: string;
+  scoring_template_id?: string;
   players: MatchPlayerCreate[];
+}
+
+export interface MatchTemplateScoreResponse {
+  template_field_id: string;
+  field_name: string | null;
+  field_type: string | null;
+  numeric_value: number | null;
+  boolean_value: boolean | null;
+  ranking_value: number | null;
 }
 
 export interface MatchPlayerResponse {
@@ -89,6 +100,7 @@ export interface MatchPlayerResponse {
   position: number;
   score: number;
   is_winner: boolean;
+  template_scores: MatchTemplateScoreResponse[];
 }
 
 export interface MatchResponse {
@@ -99,6 +111,8 @@ export interface MatchResponse {
   created_by: string;
   played_at: string;
   notes: string | null;
+  scoring_template_id: string | null;
+  scoring_template_name: string | null;
   players: MatchPlayerResponse[];
   created_at: string;
 }
@@ -199,4 +213,75 @@ export interface CollectionResponse {
 export interface CollectionDetailResponse extends CollectionResponse {
   members: MembroResponse[];
   games: CollectionJogoResponse[];
+}
+
+// ---- Scoring Templates ----
+export type ScoringFieldType = "numeric" | "ranking" | "boolean";
+
+export interface ScoringTemplateFieldCreate {
+  name: string;
+  field_type: ScoringFieldType;
+  min_value?: number | null;
+  max_value?: number | null;
+  display_order: number;
+  is_required: boolean;
+  is_tiebreaker: boolean;
+}
+
+export interface ScoringTemplateCreate {
+  game_id: string;
+  name: string;
+  description?: string;
+  fields: ScoringTemplateFieldCreate[];
+}
+
+export interface ScoringTemplateUpdate {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface TemplateScoreEntry {
+  template_field_id: string;
+  numeric_value?: number | null;
+  boolean_value?: boolean | null;
+  ranking_value?: number | null;
+}
+
+export interface ScoringTemplateFieldResponse {
+  id: string;
+  name: string;
+  field_type: ScoringFieldType;
+  min_value: number | null;
+  max_value: number | null;
+  display_order: number;
+  is_required: boolean;
+  is_tiebreaker: boolean;
+}
+
+export interface ScoringTemplateResponse {
+  id: string;
+  game_id: string;
+  game_name: string | null;
+  created_by: string;
+  created_by_username: string | null;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  fields: ScoringTemplateFieldResponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScoringTemplateListResponse {
+  id: string;
+  game_id: string;
+  game_name: string | null;
+  created_by: string;
+  created_by_username: string | null;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  field_count: number;
+  created_at: string;
 }

@@ -17,6 +17,10 @@ import type {
   CollectionDetailResponse,
   CollectionJogoResponse,
   MembroResponse,
+  ScoringTemplateResponse,
+  ScoringTemplateListResponse,
+  ScoringTemplateCreate,
+  ScoringTemplateUpdate,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -332,4 +336,54 @@ export async function removeGameFromCollection(
   gameId: string
 ): Promise<void> {
   await request(`/collections/${collectionId}/jogos/${gameId}`, { method: "DELETE" });
+}
+
+// ---- Scoring Templates ----
+
+export async function createScoringTemplate(
+  data: ScoringTemplateCreate
+): Promise<ScoringTemplateResponse> {
+  return request<ScoringTemplateResponse>("/scoring-templates/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getScoringTemplate(
+  templateId: string
+): Promise<ScoringTemplateResponse> {
+  return request<ScoringTemplateResponse>(`/scoring-templates/${templateId}`);
+}
+
+export async function searchScoringTemplates(
+  query: string,
+  limit = 20
+): Promise<ScoringTemplateListResponse[]> {
+  return request<ScoringTemplateListResponse[]>(
+    `/scoring-templates/search/?q=${encodeURIComponent(query)}&limit=${limit}`
+  );
+}
+
+export async function getScoringTemplatesByGame(
+  gameId: string
+): Promise<ScoringTemplateListResponse[]> {
+  return request<ScoringTemplateListResponse[]>(
+    `/scoring-templates/game/${gameId}`
+  );
+}
+
+export async function updateScoringTemplate(
+  templateId: string,
+  data: ScoringTemplateUpdate
+): Promise<ScoringTemplateResponse> {
+  return request<ScoringTemplateResponse>(`/scoring-templates/${templateId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteScoringTemplate(
+  templateId: string
+): Promise<void> {
+  await request(`/scoring-templates/${templateId}`, { method: "DELETE" });
 }

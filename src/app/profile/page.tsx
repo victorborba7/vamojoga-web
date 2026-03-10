@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronRight,
   CalendarDays,
+  FileText,
 } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -121,6 +122,19 @@ export default function ProfilePage() {
               <p className="text-xs text-muted">
                 {loading ? "…" : `${wishlistCount} ${wishlistCount === 1 ? "jogo" : "jogos"}`}
               </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Card>
+        </Link>
+
+        <Link href="/scoring-templates">
+          <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/15 shrink-0">
+              <FileText className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Templates de Pontuação</p>
+              <p className="text-xs text-muted">Crie e explore templates</p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Card>

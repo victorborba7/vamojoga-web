@@ -9,8 +9,15 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { createMatch, ApiError } from "@/lib/api";
-import type { UserResponse, GameResponse, MatchPlayerCreate } from "@/types";
+import { createMatch, getScoringTemplatesByGame, getScoringTemplate, ApiError } from "@/lib/api";
+import type {
+  UserResponse,
+  GameResponse,
+  MatchPlayerCreate,
+  ScoringTemplateListResponse,
+  ScoringTemplateResponse,
+  TemplateScoreEntry,
+} from "@/types";
 import { GameAutocomplete } from "@/components/match/game-autocomplete";
 import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
 
@@ -43,6 +50,15 @@ export default function NewMatchPage() {
   // Individual mode
   const [individualPlayers, setIndividualPlayers] = useState<IndividualPlayer[]>([]);
 
+  // Scoring template
+  const [availableTemplates, setAvailableTemplates] = useState<ScoringTemplateListResponse[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ScoringTemplateResponse | null>(null);
+  const [useTemplate, setUseTemplate] = useState(false);
+  // templateScores: { [userId]: { [fieldId]: TemplateScoreEntry } }
+  const [templateScores, setTemplateScores] = useState<
+    Record<string, Record<string, TemplateScoreEntry>>
+  >({});
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,6 +69,24 @@ export default function NewMatchPage() {
       return;
     }
   }, [user, authLoading, router]);
+
+  // Fetch available templates when game is selected
+  useEffect(() => {
+    if (!selectedGame) {
+      setAvailableTemplates([]);
+      setSelectedTemplate(null);
+      setUseTemplate(false);
+      return;
+    }
+    (async () => {
+      try {
+        const templates = await getScoringTemplatesByGame(selectedGame.id);
+        setAvailableTemplates(templates);
+      } catch {
+        setAvailableTemplates([]);
+      }
+    })();
+  }, [selectedGame]);
 
   const selectedIds =
     mode === "teams"
@@ -91,21 +125,26 @@ export default function NewMatchPage() {
     });
   }
 
+  function rankWithTies(players: IndividualPlayer[]): IndividualPlayer[] {
+    const sorted = [...players].sort((a, b) => b.score - a.score);
+    let rank = 1;
+    return sorted.map((p, i) => {
+      if (i > 0 && sorted[i].score < sorted[i - 1].score) rank = i + 1;
+      return { ...p, position: rank };
+    });
+  }
+
   function updateIndividualScore(playerId: string, score: number) {
     setIndividualPlayers((prev) => {
       const updated = prev.map((p) =>
         p.user.id === playerId ? { ...p, score } : p
       );
-      const sorted = [...updated].sort((a, b) => b.score - a.score);
-      return sorted.map((p, i) => ({ ...p, position: i + 1 }));
+      return rankWithTies(updated);
     });
   }
 
   function autoRankByScore() {
-    setIndividualPlayers((prev) => {
-      const sorted = [...prev].sort((a, b) => b.score - a.score);
-      return sorted.map((p, i) => ({ ...p, position: i + 1 }));
-    });
+    setIndividualPlayers((prev) => rankWithTies(prev));
   }
 
   function movePosition(playerId: string, direction: "up" | "down") {
@@ -118,6 +157,119 @@ export default function NewMatchPage() {
       [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
       return updated.map((p, i) => ({ ...p, position: i + 1 }));
     });
+  }
+
+  function breakTiesSequentially() {
+    setIndividualPlayers((prev) => prev.map((p, i) => ({ ...p, position: i + 1 })));
+  }
+
+  function applyTiebreaker(
+    players: IndividualPlayer[],
+    tbField: { id: string; field_type: string }
+  ): IndividualPlayer[] {
+    const byPos: Record<number, IndividualPlayer[]> = {};
+    for (const p of players) {
+      if (!byPos[p.position]) byPos[p.position] = [];
+      byPos[p.position].push(p);
+    }
+    const result: IndividualPlayer[] = [];
+    let pos = 1;
+    for (const k of Object.keys(byPos).map(Number).sort((a, b) => a - b)) {
+      const group = byPos[k];
+      if (group.length === 1) {
+        result.push({ ...group[0], position: pos });
+        pos++;
+      } else {
+        const sorted = [...group].sort((a, b) => {
+          const ae = templateScores[a.user.id]?.[tbField.id];
+          const be = templateScores[b.user.id]?.[tbField.id];
+          if (tbField.field_type === "numeric")
+            return (be?.numeric_value ?? 0) - (ae?.numeric_value ?? 0);
+          if (tbField.field_type === "ranking")
+            return (ae?.ranking_value ?? Infinity) - (be?.ranking_value ?? Infinity);
+          if (tbField.field_type === "boolean")
+            return (be?.boolean_value ? 1 : 0) - (ae?.boolean_value ? 1 : 0);
+          return 0;
+        });
+        for (const p of sorted) {
+          result.push({ ...p, position: pos });
+          pos++;
+        }
+      }
+    }
+    return result;
+  }
+
+  function resolveTiesWithTiebreaker() {
+    if (!selectedTemplate) return;
+    const tbField = selectedTemplate.fields.find((f) => f.is_tiebreaker);
+    if (!tbField) return;
+    setIndividualPlayers((prev) => applyTiebreaker(prev, tbField));
+  }
+
+  function prepareAndConfirm() {
+    if (useTemplate && selectedTemplate) {
+      setIndividualPlayers((prev) => {
+        let players = prev.map((p) => {
+          const userScores = templateScores[p.user.id] || {};
+          let total = 0;
+          for (const field of selectedTemplate.fields) {
+            if (field.is_tiebreaker) continue;
+            const entry = userScores[field.id];
+            if (!entry) continue;
+            if (field.field_type === "numeric") total += entry.numeric_value ?? 0;
+            else if (field.field_type === "boolean") total += entry.boolean_value ? 1 : 0;
+          }
+          return { ...p, score: total };
+        });
+        players = rankWithTies(players);
+        const tbField = selectedTemplate.fields.find((f) => f.is_tiebreaker);
+        if (tbField) {
+          players = applyTiebreaker(players, tbField);
+        }
+        return players;
+      });
+    } else {
+      autoRankByScore();
+    }
+    setStep("confirm");
+  }
+
+  // Template score helpers
+  async function handleSelectTemplate(templateId: string) {
+    try {
+      const t = await getScoringTemplate(templateId);
+      setSelectedTemplate(t);
+      setUseTemplate(true);
+      setTemplateScores({});
+    } catch {
+      setSelectedTemplate(null);
+      setUseTemplate(false);
+    }
+  }
+
+  function handleClearTemplate() {
+    setSelectedTemplate(null);
+    setUseTemplate(false);
+    setTemplateScores({});
+  }
+
+  function updateTemplateScore(
+    userId: string,
+    fieldId: string,
+    entry: Partial<TemplateScoreEntry>
+  ) {
+    setTemplateScores((prev) => ({
+      ...prev,
+      [userId]: {
+        ...(prev[userId] || {}),
+        [fieldId]: {
+          template_field_id: fieldId,
+          ...(prev[userId]?.[fieldId] || {}),
+          ...entry,
+        },
+      },
+    }));
   }
 
   // --- Submit ---
@@ -136,12 +288,18 @@ export default function NewMatchPage() {
           position: isTeamAWinner ? 1 : 2,
           score: scoreA,
           is_winner: isTeamAWinner,
+          template_scores: useTemplate && selectedTemplate
+            ? Object.values(templateScores[p.id] || {})
+            : [],
         })),
         ...teamB.map((p) => ({
           user_id: p.id,
           position: isTeamAWinner ? 2 : 1,
           score: scoreB,
           is_winner: !isTeamAWinner,
+          template_scores: useTemplate && selectedTemplate
+            ? Object.values(templateScores[p.id] || {})
+            : [],
         })),
       ];
     } else {
@@ -150,12 +308,16 @@ export default function NewMatchPage() {
         position: p.position,
         score: p.score,
         is_winner: p.position === 1,
+        template_scores: useTemplate && selectedTemplate
+          ? Object.values(templateScores[p.user.id] || {})
+          : [],
       }));
     }
 
     try {
       await createMatch({
         game_id: selectedGame.id,
+        scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
         players,
       });
       router.push("/matches");
@@ -169,6 +331,19 @@ export default function NewMatchPage() {
       setSubmitting(false);
     }
   }
+
+  // Tie detection
+  const tiedGroups = (() => {
+    const byPos: Record<number, IndividualPlayer[]> = {};
+    for (const p of individualPlayers) {
+      if (!byPos[p.position]) byPos[p.position] = [];
+      byPos[p.position].push(p);
+    }
+    return Object.values(byPos).filter((g) => g.length > 1);
+  })();
+  const hasTies = tiedGroups.length > 0;
+  const tiebreakerField =
+    selectedTemplate?.fields.find((f) => f.is_tiebreaker) ?? null;
 
   // --- Validations ---
   const canGoToScore =
@@ -567,6 +742,128 @@ export default function NewMatchPage() {
       {/* STEP: Placar — INDIVIDUAL */}
       {step === "score" && mode === "individual" && (
         <div className="space-y-4">
+          {/* Template selector */}
+          {availableTemplates.length > 0 && (
+            <Card>
+              <p className="text-xs text-muted font-medium mb-2">Método de pontuação</p>
+              <div className="flex gap-2 mb-2">
+                <button
+                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                    !useTemplate
+                      ? "bg-primary-600 text-white"
+                      : "bg-neutral-800 text-neutral-400"
+                  }`}
+                  onClick={handleClearTemplate}
+                >
+                  Padrão
+                </button>
+                <button
+                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                    useTemplate
+                      ? "bg-primary-600 text-white"
+                      : "bg-neutral-800 text-neutral-400"
+                  }`}
+                  onClick={() => {
+                    if (!selectedTemplate && availableTemplates.length > 0) {
+                      handleSelectTemplate(availableTemplates[0].id);
+                    } else {
+                      setUseTemplate(true);
+                    }
+                  }}
+                >
+                  Template
+                </button>
+              </div>
+              {useTemplate && (
+                <select
+                  className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground focus:border-primary-600 focus:outline-none"
+                  value={selectedTemplate?.id ?? ""}
+                  onChange={(e) => handleSelectTemplate(e.target.value)}
+                >
+                  {availableTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.field_count} campos)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Card>
+          )}
+
+          {/* Template fields per player */}
+          {useTemplate && selectedTemplate && (
+            <div className="space-y-3">
+              {individualPlayers.map((p) => (
+                <Card key={p.user.id}>
+                  <p className="text-sm font-semibold text-foreground mb-2">
+                    {p.user.username}
+                  </p>
+                  <div className="space-y-2">
+                    {selectedTemplate.fields.map((f) => (
+                      <div key={f.id}>
+                        <label className="text-xs text-muted mb-1 block">
+                          {f.name}
+                          {!f.is_required && " (opcional)"}
+                        </label>
+                        {f.field_type === "numeric" && (
+                          <input
+                            type="number"
+                            min={f.min_value ?? undefined}
+                            max={f.max_value ?? undefined}
+                            className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                            placeholder={
+                              f.min_value != null && f.max_value != null
+                                ? `${f.min_value} — ${f.max_value}`
+                                : "0"
+                            }
+                            value={templateScores[p.user.id]?.[f.id]?.numeric_value ?? ""}
+                            onChange={(e) =>
+                              updateTemplateScore(p.user.id, f.id, {
+                                numeric_value: e.target.value ? Number(e.target.value) : null,
+                              })
+                            }
+                          />
+                        )}
+                        {f.field_type === "ranking" && (
+                          <input
+                            type="number"
+                            min={1}
+                            className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                            placeholder="Posição (1, 2, 3...)"
+                            value={templateScores[p.user.id]?.[f.id]?.ranking_value ?? ""}
+                            onChange={(e) =>
+                              updateTemplateScore(p.user.id, f.id, {
+                                ranking_value: e.target.value ? Number(e.target.value) : null,
+                              })
+                            }
+                          />
+                        )}
+                        {f.field_type === "boolean" && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="accent-primary-600 h-4 w-4"
+                              checked={templateScores[p.user.id]?.[f.id]?.boolean_value ?? false}
+                              onChange={(e) =>
+                                updateTemplateScore(p.user.id, f.id, {
+                                  boolean_value: e.target.checked,
+                                })
+                              }
+                            />
+                            <span className="text-sm text-foreground">Sim</span>
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Default scoring */}
+          {!useTemplate && (
+            <>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-muted font-medium">Defina a pontuação de cada jogador</p>
             <button
@@ -645,6 +942,36 @@ export default function NewMatchPage() {
               </Card>
             ))}
           </div>
+            </>
+          )}
+
+          {/* Tie detection */}
+          {hasTies && !useTemplate && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-amber-400 text-lg">⚖️</span>
+                <p className="text-sm font-semibold text-amber-400">Empate detectado</p>
+              </div>
+              {tiedGroups.map((group, i) => (
+                <p key={i} className="text-xs text-muted mb-1">
+                  {group.map((g) => g.user.username).join(" e ")} — {group[0].position}º lugar ({group[0].score} pts)
+                </p>
+              ))}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {tiebreakerField && useTemplate && (
+                  <Button size="sm" variant="primary" onClick={resolveTiesWithTiebreaker}>
+                    Resolver com &quot;{tiebreakerField.name}&quot;
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={breakTiesSequentially}>
+                  Definir ranking manual
+                </Button>
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Ou clique em &quot;Confirmar&quot; para manter o empate.
+              </p>
+            </Card>
+          )}
 
           <div className="flex gap-3">
             <Button variant="outline" size="lg" onClick={() => setStep("players")}>
@@ -653,10 +980,7 @@ export default function NewMatchPage() {
             <Button
               variant="primary"
               size="lg"
-              onClick={() => {
-                autoRankByScore();
-                setStep("confirm");
-              }}
+              onClick={prepareAndConfirm}
               disabled={!canConfirmIndividual}
             >
               Confirmar
