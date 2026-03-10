@@ -76,6 +76,7 @@ export default function GameDetailPage({ params }: Props) {
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showDescModal, setShowDescModal] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -234,6 +235,17 @@ export default function GameDetailPage({ params }: Props) {
               <span className="text-xs text-muted">/ 10 BGG</span>
             </div>
           )}
+          {game.description && (
+            <p className="text-xs text-muted mt-2 line-clamp-2 leading-relaxed">
+              {game.description}{" "}
+              <button
+                onClick={() => setShowDescModal(true)}
+                className="text-primary-400 font-medium hover:underline inline"
+              >
+                Ler mais
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
@@ -307,11 +319,23 @@ export default function GameDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Description */}
-      {game.description && (
-        <Card className="mb-6">
-          <p className="text-sm text-muted leading-relaxed">{game.description}</p>
-        </Card>
+      {/* Description modal */}
+      {showDescModal && game.description && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowDescModal(false)}
+        >
+          <div
+            className="w-full max-w-md max-h-[70vh] rounded-t-3xl bg-card px-6 pt-4 pb-10 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
+            <p className="text-base font-bold text-foreground mb-4">Sobre o jogo</p>
+            <div className="overflow-y-auto">
+              <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{game.description}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Friends who own this game */}

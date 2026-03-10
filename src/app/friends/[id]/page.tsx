@@ -24,6 +24,11 @@ import {
   getUserStats,
   getUserLibrary,
   getUserWishlist,
+  getMyLibrary,
+  getMyWishlist,
+  addToLibrary,
+  addToWishlist,
+  removeFromWishlist,
 } from "@/lib/api";
 import type {
   UserResponse,
@@ -47,6 +52,9 @@ export default function FriendDetailPage({
   const [stats, setStats] = useState<UserStats | null>(null);
   const [library, setLibrary] = useState<LibraryEntryResponse[]>([]);
   const [wishlist, setWishlist] = useState<WishlistEntryResponse[]>([]);
+  const [myLibraryIds, setMyLibraryIds] = useState<Set<string>>(new Set());
+  const [myWishlistIds, setMyWishlistIds] = useState<Set<string>>(new Set());
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("library");
 
@@ -62,12 +70,16 @@ export default function FriendDetailPage({
       getUserStats(friendId),
       getUserLibrary(friendId),
       getUserWishlist(friendId),
+      getMyLibrary(),
+      getMyWishlist(),
     ])
-      .then(([f, s, lib, wish]) => {
+      .then(([f, s, lib, wish, myLib, myWish]) => {
         setFriend(f);
         setStats(s);
         setLibrary(lib);
         setWishlist(wish);
+        setMyLibraryIds(new Set(myLib.map((e) => e.game.id)));
+        setMyWishlistIds(new Set(myWish.map((e) => e.game.id)));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -234,34 +246,84 @@ export default function FriendDetailPage({
               </p>
             </div>
           ) : (
-            library.map((entry) => (
-              <Link key={entry.id} href={`/games/${entry.game.id}`}>
-                <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer p-3!">
-                  {entry.game.image_url ? (
-                    <img
-                      src={entry.game.image_url}
-                      alt={entry.game.name}
-                      className="h-12 w-12 rounded-lg object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-500/10 shrink-0">
-                      <Package className="h-5 w-5 text-primary-400" />
+            library.map((entry) => {
+              const gid = entry.game.id;
+              const owned = myLibraryIds.has(gid);
+              const wished = myWishlistIds.has(gid);
+              return (
+                <Card key={entry.id} className="flex items-center gap-3 p-3!">
+                  <Link href={`/games/${gid}`} className="flex items-center gap-3 flex-1 min-w-0">
+                    {entry.game.image_url ? (
+                      <img
+                        src={entry.game.image_url}
+                        alt={entry.game.name}
+                        className="h-12 w-12 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-500/10 shrink-0">
+                        <Package className="h-5 w-5 text-primary-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {entry.game.name}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {entry.match_count}{" "}
+                        {entry.match_count === 1 ? "partida" : "partidas"} registrada
+                        {entry.match_count !== 1 ? "s" : ""}
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {entry.game.name}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {entry.match_count}{" "}
-                      {entry.match_count === 1 ? "partida" : "partidas"} registrada
-                      {entry.match_count !== 1 ? "s" : ""}
-                    </p>
+                  </Link>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      title={owned ? "Já na sua biblioteca" : "Adicionar à biblioteca"}
+                      disabled={owned || actionLoading === `lib-${gid}`}
+                      onClick={async () => {
+                        setActionLoading(`lib-${gid}`);
+                        try {
+                          await addToLibrary(gid);
+                          setMyLibraryIds((s) => new Set(s).add(gid));
+                          if (wished) {
+                            await removeFromWishlist(gid);
+                            setMyWishlistIds((s) => { const n = new Set(s); n.delete(gid); return n; });
+                          }
+                        } catch {}
+                        setActionLoading(null);
+                      }}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        owned
+                          ? "text-primary-400 bg-primary-500/20"
+                          : "text-muted hover:text-primary-400 hover:bg-primary-500/10"
+                      }`}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                    </button>
+                    <button
+                      title={owned ? "Já na biblioteca" : wished ? "Já na wishlist" : "Adicionar à wishlist"}
+                      disabled={owned || wished || actionLoading === `wish-${gid}`}
+                      onClick={async () => {
+                        setActionLoading(`wish-${gid}`);
+                        try {
+                          await addToWishlist(gid, true);
+                          setMyWishlistIds((s) => new Set(s).add(gid));
+                        } catch {}
+                        setActionLoading(null);
+                      }}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        wished
+                          ? "text-accent-400 bg-accent-500/20"
+                          : owned
+                            ? "opacity-30 cursor-not-allowed text-muted"
+                            : "text-muted hover:text-accent-400 hover:bg-accent-500/10"
+                      }`}
+                    >
+                      <Heart className="h-4 w-4" />
+                    </button>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted shrink-0" />
                 </Card>
-              </Link>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -277,39 +339,89 @@ export default function FriendDetailPage({
               </p>
             </div>
           ) : (
-            wishlist.map((entry) => (
-              <Link key={entry.id} href={`/games/${entry.game.id}`}>
-                <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer p-3!">
-                  {entry.game.image_url ? (
-                    <img
-                      src={entry.game.image_url}
-                      alt={entry.game.name}
-                      className="h-12 w-12 rounded-lg object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent-500/10 shrink-0">
-                      <Heart className="h-5 w-5 text-accent-400" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {entry.game.name}
-                    </p>
-                    {entry.friends_who_own.length > 0 && (
-                      <p className="text-xs text-accent-400 truncate">
-                        {entry.friends_who_own.length === 1
-                          ? `${entry.friends_who_own[0]} possui`
-                          : `${entry.friends_who_own[0]} e mais ${entry.friends_who_own.length - 1} possuem`}
+            wishlist.map((entry) => {
+              const gid = entry.game.id;
+              const owned = myLibraryIds.has(gid);
+              const wished = myWishlistIds.has(gid);
+              return (
+                <Card key={entry.id} className="flex items-center gap-3 p-3!">
+                  <Link href={`/games/${gid}`} className="flex items-center gap-3 flex-1 min-w-0">
+                    {entry.game.image_url ? (
+                      <img
+                        src={entry.game.image_url}
+                        alt={entry.game.name}
+                        className="h-12 w-12 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent-500/10 shrink-0">
+                        <Heart className="h-5 w-5 text-accent-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {entry.game.name}
                       </p>
-                    )}
-                    {entry.friends_who_own.length === 0 && (
-                      <p className="text-xs text-muted">Na wishlist</p>
-                    )}
+                      {entry.friends_who_own.length > 0 && (
+                        <p className="text-xs text-accent-400 truncate">
+                          {entry.friends_who_own.length === 1
+                            ? `${entry.friends_who_own[0]} possui`
+                            : `${entry.friends_who_own[0]} e mais ${entry.friends_who_own.length - 1} possuem`}
+                        </p>
+                      )}
+                      {entry.friends_who_own.length === 0 && (
+                        <p className="text-xs text-muted">Na wishlist</p>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      title={owned ? "Já na sua biblioteca" : "Adicionar à biblioteca"}
+                      disabled={owned || actionLoading === `lib-${gid}`}
+                      onClick={async () => {
+                        setActionLoading(`lib-${gid}`);
+                        try {
+                          await addToLibrary(gid);
+                          setMyLibraryIds((s) => new Set(s).add(gid));
+                          if (wished) {
+                            await removeFromWishlist(gid);
+                            setMyWishlistIds((s) => { const n = new Set(s); n.delete(gid); return n; });
+                          }
+                        } catch {}
+                        setActionLoading(null);
+                      }}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        owned
+                          ? "text-primary-400 bg-primary-500/20"
+                          : "text-muted hover:text-primary-400 hover:bg-primary-500/10"
+                      }`}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                    </button>
+                    <button
+                      title={owned ? "Já na biblioteca" : wished ? "Já na wishlist" : "Adicionar à wishlist"}
+                      disabled={owned || wished || actionLoading === `wish-${gid}`}
+                      onClick={async () => {
+                        setActionLoading(`wish-${gid}`);
+                        try {
+                          await addToWishlist(gid, true);
+                          setMyWishlistIds((s) => new Set(s).add(gid));
+                        } catch {}
+                        setActionLoading(null);
+                      }}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        wished
+                          ? "text-accent-400 bg-accent-500/20"
+                          : owned
+                            ? "opacity-30 cursor-not-allowed text-muted"
+                            : "text-muted hover:text-accent-400 hover:bg-accent-500/10"
+                      }`}
+                    >
+                      <Heart className="h-4 w-4" />
+                    </button>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted shrink-0" />
                 </Card>
-              </Link>
-            ))
+              );
+            })
           )}
         </div>
       )}
