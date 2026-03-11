@@ -472,7 +472,7 @@ export default function ScoringTemplatesPage() {
                     })}
                   </div>
 
-                  {/* Required toggle */
+                  {/* Required toggle */}
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
