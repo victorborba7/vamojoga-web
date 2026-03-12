@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "VamoJogá",
   "short_name": "VamoJogá",
   "description": "Registre partidas e acompanhe o ranking dos jogadores",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f0f0f",
   "theme_color": "#7c3aed",
