@@ -71,6 +71,8 @@ export default function MatchDetailPage() {
   const losers = match.players.filter((p) => !p.is_winner);
   const isIndividual = hasDistinctPositions(match.players);
   const isDraw = winners.length === 0 || match.players.every((p) => p.position === 1);
+  const positionOnly =
+    match.match_mode === "ranking" || match.match_mode === "winner_takes_all";
 
   const playedAt = new Date(match.played_at);
   const dateStr = playedAt.toLocaleDateString("pt-BR", {
@@ -173,12 +175,14 @@ export default function MatchDetailPage() {
                       </div>
                     </div>
                     <div className="text-right flex items-center gap-2">
-                      <div>
-                        <p className="text-lg font-bold text-foreground">
-                          {player.score}
-                        </p>
-                        <p className="text-xs text-muted">pts</p>
-                      </div>
+                      {!positionOnly && (
+                        <div>
+                          <p className="text-lg font-bold text-foreground">
+                            {player.score}
+                          </p>
+                          <p className="text-xs text-muted">pts</p>
+                        </div>
+                      )}
                       {player.template_scores?.length > 0 && (
                         expandedPlayer === player.id
                           ? <ChevronUp className="h-4 w-4 text-neutral-500" />
@@ -258,9 +262,11 @@ export default function MatchDetailPage() {
                       <p className="text-sm font-semibold text-foreground truncate">
                         {player.username || "Jogador"}
                       </p>
-                      <p className="text-xs text-win font-medium">
-                        {player.score} pts
-                      </p>
+                      {!positionOnly && (
+                        <p className="text-xs text-win font-medium">
+                          {player.score} pts
+                        </p>
+                      )}
                     </div>
                     <Trophy className="h-4 w-4 text-yellow-400 shrink-0" />
                   </div>
@@ -277,9 +283,11 @@ export default function MatchDetailPage() {
                       <p className="text-sm font-semibold text-foreground truncate">
                         {player.username || "Jogador"}
                       </p>
-                      <p className="text-xs text-neutral-400 font-medium">
-                        {player.score} pts
-                      </p>
+                      {!positionOnly && (
+                        <p className="text-xs text-neutral-400 font-medium">
+                          {player.score} pts
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -308,9 +316,11 @@ export default function MatchDetailPage() {
                   <span className="text-sm font-semibold text-foreground flex-1 truncate">
                     {player.username || "Jogador"}
                   </span>
-                  <span className="text-sm font-bold text-foreground">
-                    {player.score} pts
-                  </span>
+                  {!positionOnly && (
+                    <span className="text-sm font-bold text-foreground">
+                      {player.score} pts
+                    </span>
+                  )}
                 </div>
                 {player.template_scores?.length > 0 && (
                   <div className="space-y-1 border-t border-border pt-2">

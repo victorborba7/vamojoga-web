@@ -113,6 +113,7 @@ export interface MatchResponse {
   created_by: string;
   played_at: string;
   notes: string | null;
+  match_mode?: string;
   scoring_template_id: string | null;
   scoring_template_name: string | null;
   players: MatchPlayerResponse[];

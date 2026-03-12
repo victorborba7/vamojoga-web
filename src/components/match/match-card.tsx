@@ -31,6 +31,10 @@ export function MatchCard({ match }: MatchCardProps) {
   // Detect draw: no winners or all players share position 1
   const isDraw = winners.length === 0 || match.players.every((p) => p.position === 1);
 
+  // Ranking or winner_takes_all: show only positions, no numeric scores
+  const positionOnly =
+    match.match_mode === "ranking" || match.match_mode === "winner_takes_all";
+
   // For teams: use the score from the first player of each side
   const winnerScore = winners[0]?.score ?? 0;
   const loserScore = losers[0]?.score ?? 0;
@@ -63,13 +67,20 @@ export function MatchCard({ match }: MatchCardProps) {
                 ? `${sortedPlayers[0]?.username || "?"} venceu`
                 : `${winnerNames}`}
             </span>
-            <span className={`text-xs font-bold shrink-0 ${isDraw ? "text-amber-400" : "text-win"}`}>
-              {isDraw
-                ? `${sortedPlayers[0]?.score ?? 0} pts`
-                : isIndividual
-                ? `${sortedPlayers[0]?.score ?? 0} pts`
-                : `${winnerScore} × ${loserScore}`}
-            </span>
+            {!positionOnly && (
+              <span className={`text-xs font-bold shrink-0 ${isDraw ? "text-amber-400" : "text-win"}`}>
+                {isDraw
+                  ? `${sortedPlayers[0]?.score ?? 0} pts`
+                  : isIndividual
+                  ? `${sortedPlayers[0]?.score ?? 0} pts`
+                  : `${winnerScore} × ${loserScore}`}
+              </span>
+            )}
+            {positionOnly && (
+              <span className="text-xs font-medium shrink-0 text-muted">
+                {match.players.length} jogadores
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-muted">{date}</span>
@@ -112,9 +123,11 @@ export function MatchCard({ match }: MatchCardProps) {
                   <span className="text-xs text-foreground font-medium flex-1 truncate">
                     {player.username || "Jogador"}
                   </span>
-                  <span className="text-xs font-bold text-muted">
-                    {player.score} pts
-                  </span>
+                  {!positionOnly && (
+                    <span className="text-xs font-bold text-muted">
+                      {player.score} pts
+                    </span>
+                  )}
                   {player.position === 1 && (
                     <Trophy className="h-3 w-3 text-yellow-400" />
                   )}
