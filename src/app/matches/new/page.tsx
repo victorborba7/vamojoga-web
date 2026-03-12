@@ -3,6 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { SortableRankingItem } from "@/components/match/sortable-ranking-item";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -89,6 +104,25 @@ export default function NewMatchPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [unlockedAchievements, setUnlockedAchievements] = useState<NewlyUnlockedAchievement[]>([]);
+
+  // DnD sensors — PointerSensor for desktop, TouchSensor for mobile
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    })
+  );
+
+  function handleRankingDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setIndividualPlayers((prev) => {
+      const oldIndex = prev.findIndex((p) => p.user.id === active.id);
+      const newIndex = prev.findIndex((p) => p.user.id === over.id);
+      const reordered = arrayMove(prev, oldIndex, newIndex);
+      return reordered.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
 
   // Inline template creation
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
@@ -1371,52 +1405,31 @@ export default function NewMatchPage() {
             </>
           )}
 
-          {/* Default scoring — Ranking */}
+          {/* Default scoring — Ranking (drag & drop) */}
           {!useTemplate && scoringType === "ranking" && (
             <>
               <p className="text-xs text-muted font-medium mb-2">Arraste para definir a classificação</p>
-              <div className="space-y-2">
-                {individualPlayers.map((p, idx) => (
-                  <Card key={p.user.id} className="p-3!">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <button
-                          onClick={() => movePosition(p.user.id, "up")}
-                          disabled={idx === 0}
-                          className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span
-                          className={`text-sm font-bold w-6 text-center ${
-                            p.position === 1
-                              ? "text-yellow-400"
-                              : p.position === 2
-                              ? "text-neutral-300"
-                              : p.position === 3
-                              ? "text-amber-600"
-                              : "text-neutral-500"
-                          }`}
-                        >
-                          {p.position}º
-                        </span>
-                        <button
-                          onClick={() => movePosition(p.user.id, "down")}
-                          disabled={idx === individualPlayers.length - 1}
-                          className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      </div>
-                      <Avatar name={p.user.username} size="sm" />
-                      <span className="text-sm text-foreground font-medium flex-1 truncate">
-                        {p.user.username}
-                      </span>
-                      {p.position === 1 && <Trophy className="h-4 w-4 text-yellow-400" />}
-                    </div>
-                  </Card>
-                ))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleRankingDragEnd}
+              >
+                <SortableContext
+                  items={individualPlayers.map((p) => p.user.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {individualPlayers.map((p) => (
+                      <SortableRankingItem
+                        key={p.user.id}
+                        id={p.user.id}
+                        username={p.user.username}
+                        position={p.position}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </>
           )}
 
