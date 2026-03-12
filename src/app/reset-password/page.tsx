@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
         <Image
           src="/full_logo.png"
-          alt="VamoJoga"
+          alt="VamoJogá"
           width={180}
           height={72}
           className="mx-auto mb-6"

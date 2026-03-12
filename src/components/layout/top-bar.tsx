@@ -26,13 +26,13 @@ export function TopBar() {
         >
           <Image
             src="/logo.png"
-            alt="VamoJoga"
+            alt="VamoJogá"
             width={32}
             height={32}
             className="rounded-xl shadow-md shadow-primary-500/20 transition-transform group-hover:scale-105"
           />
           <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
-            VamoJoga
+            VamoJogá
           </span>
         </Link>
 

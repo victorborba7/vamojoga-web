@@ -1,6 +1,6 @@
-﻿# VamoJoga — Web
+﻿# VamoJogá — Web
 
-Frontend da plataforma VamoJoga, construído com Next.js 16 e Tailwind CSS v4.
+Frontend da plataforma VamoJogá, construído com Next.js 16 e Tailwind CSS v4.
 
 ## Stack
 

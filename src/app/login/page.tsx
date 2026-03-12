@@ -75,7 +75,7 @@ export default function LoginPage() {
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
         <Image
           src="/full_logo.png"
-          alt="VamoJoga"
+          alt="VamoJogá"
           width={180}
           height={72}
           className="mx-auto mb-6"
@@ -140,7 +140,7 @@ export default function LoginPage() {
         ) : (
           <>
             <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
-            <p className="text-sm text-muted mb-6">Acesse sua conta VamoJoga</p>
+            <p className="text-sm text-muted mb-6">Acesse sua conta VamoJogá</p>
 
             <Card className="w-full max-w-sm">
               <form onSubmit={handleSubmit} className="space-y-4">

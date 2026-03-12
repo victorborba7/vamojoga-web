@@ -58,7 +58,7 @@ for (const [w, h] of SIZES) {
   ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("VamoJoga", cx, cy + radius * 1.6);
+  ctx.fillText("VamoJogá", cx, cy + radius * 1.6);
 
   const filename = `apple-splash-${w}-${h}.png`;
   writeFileSync(resolve(OUTPUT_DIR, filename), canvas.toBuffer("image/png"));

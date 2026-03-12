@@ -1,6 +1,6 @@
 {
-  "name": "VamoJoga",
-  "short_name": "VamoJoga",
+  "name": "VamoJogá",
+  "short_name": "VamoJogá",
   "description": "Registre partidas e acompanhe o ranking dos jogadores",
   "start_url": "/",
   "display": "standalone",

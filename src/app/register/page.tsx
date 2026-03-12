@@ -65,14 +65,14 @@ export default function RegisterPage() {
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
         <Image
           src="/full_logo.png"
-          alt="VamoJoga"
+          alt="VamoJogá"
           width={180}
           height={72}
           className="mx-auto mb-6"
           priority
         />
         <h1 className="text-2xl font-bold text-foreground mb-1">Criar Conta</h1>
-        <p className="text-sm text-muted mb-6">Junte-se ao VamoJoga</p>
+        <p className="text-sm text-muted mb-6">Junte-se ao VamoJogá</p>
 
         <Card className="w-full max-w-sm">
           <form onSubmit={handleSubmit} className="space-y-4">

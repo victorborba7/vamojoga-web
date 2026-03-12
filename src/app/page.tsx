@@ -90,7 +90,7 @@ export default function Home() {
         <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
           <Image
             src="/full_logo.png"
-            alt="VamoJoga"
+            alt="VamoJogá"
             width={200}
             height={80}
             className="mx-auto mb-2"

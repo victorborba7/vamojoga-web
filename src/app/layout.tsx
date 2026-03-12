@@ -16,13 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VamoJoga",
+  title: "VamoJogá",
   description: "Registre partidas e acompanhe o ranking dos jogadores",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "VamoJoga",
+    title: "VamoJogá",
     startupImage: [
       // iPhone 16 Pro Max (440x956 @3x → 1320x2868)
       {
