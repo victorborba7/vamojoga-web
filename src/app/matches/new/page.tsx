@@ -18,6 +18,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { SortableRankingItem } from "@/components/match/sortable-ranking-item";
+import { SortableNumericPlayerItem } from "@/components/match/sortable-numeric-player-item";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,17 @@ export default function NewMatchPage() {
     });
   }
 
+  function handleNumericDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setIndividualPlayers((prev) => {
+      const oldIndex = prev.findIndex((p) => p.user.id === active.id);
+      const newIndex = prev.findIndex((p) => p.user.id === over.id);
+      const reordered = arrayMove(prev, oldIndex, newIndex);
+      return reordered.map((p, i) => ({ ...p, position: i + 1 }));
+    });
+  }
+
   // Inline template creation
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -214,18 +226,6 @@ export default function NewMatchPage() {
 
   function autoRankByScore() {
     setIndividualPlayers((prev) => rankWithTies(prev));
-  }
-
-  function movePosition(playerId: string, direction: "up" | "down") {
-    setIndividualPlayers((prev) => {
-      const idx = prev.findIndex((p) => p.user.id === playerId);
-      if (idx < 0) return prev;
-      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-      if (swapIdx < 0 || swapIdx >= prev.length) return prev;
-      const updated = [...prev];
-      [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
-      return updated.map((p, i) => ({ ...p, position: i + 1 }));
-    });
   }
 
   function breakTiesSequentially() {
@@ -1324,84 +1324,39 @@ export default function NewMatchPage() {
           {/* Default scoring — Numérica */}
           {!useTemplate && scoringType === "numeric" && (
             <>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted font-medium">Defina a pontuação de cada jogador</p>
-            <button
-              onClick={autoRankByScore}
-              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
-            >
-              <Trophy className="h-3 w-3" />
-              Ordenar por pontuação
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {individualPlayers.map((p, idx) => (
-              <Card key={p.user.id} className="p-3!">
-                <div className="flex items-center gap-3">
-                  {/* Position */}
-                  <div className="flex flex-col items-center gap-0.5">
-                    <button
-                      onClick={() => movePosition(p.user.id, "up")}
-                      disabled={idx === 0}
-                      className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                    >
-                      <Minus className="h-3 w-3 rotate-0" />
-                    </button>
-                    <span
-                      className={`text-sm font-bold w-6 text-center ${
-                        p.position === 1
-                          ? "text-yellow-400"
-                          : p.position === 2
-                          ? "text-neutral-300"
-                          : p.position === 3
-                          ? "text-amber-600"
-                          : "text-neutral-500"
-                      }`}
-                    >
-                      {p.position}º
-                    </span>
-                    <button
-                      onClick={() => movePosition(p.user.id, "down")}
-                      disabled={idx === individualPlayers.length - 1}
-                      className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted font-medium">Defina a pontuação de cada jogador</p>
+                <button
+                  onClick={autoRankByScore}
+                  className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
+                >
+                  <Trophy className="h-3 w-3" />
+                  Ordenar por pontuação
+                </button>
+              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleNumericDragEnd}
+              >
+                <SortableContext
+                  items={individualPlayers.map((p) => p.user.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {individualPlayers.map((p) => (
+                      <SortableNumericPlayerItem
+                        key={p.user.id}
+                        id={p.user.id}
+                        username={p.user.username}
+                        position={p.position}
+                        score={p.score}
+                        onScoreChange={(newScore) => updateIndividualScore(p.user.id, newScore)}
+                      />
+                    ))}
                   </div>
-
-                  {/* Player */}
-                  <Avatar name={p.user.username} size="sm" />
-                  <span className="text-sm text-foreground font-medium flex-1 truncate">
-                    {p.user.username}
-                  </span>
-
-                  {/* Score */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateIndividualScore(p.user.id, Math.max(0, p.score - 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <input
-                      type="number"
-                      min={0}
-                      value={p.score}
-                      onChange={(e) => updateIndividualScore(p.user.id, Math.max(0, parseInt(e.target.value) || 0))}
-                      className="text-lg font-bold text-foreground w-12 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button
-                      onClick={() => updateIndividualScore(p.user.id, p.score + 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </SortableContext>
+              </DndContext>
             </>
           )}
 
