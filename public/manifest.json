@@ -6,9 +6,27 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0f0f0f",
   "theme_color": "#7c3aed",
   "orientation": "portrait",
+  "categories": ["games", "social", "entertainment"],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-home.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "VamoJogá - Tela inicial"
+    },
+    {
+      "src": "/screenshots/screenshot-ranking.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "VamoJogá - Ranking"
+    }
+  ],
   "icons": [
     {
       "src": "/apple-touch-icon.png",
