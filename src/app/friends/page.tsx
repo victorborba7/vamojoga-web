@@ -140,6 +140,7 @@ export default function FriendsPage() {
   }
 
   async function handleRemove(friendshipId: string) {
+    if (!confirm("Remover este amigo? Você precisará enviar um novo convite para reconectá-lo.")) return;
     setActionLoading(friendshipId);
     try {
       await removeFriend(friendshipId);

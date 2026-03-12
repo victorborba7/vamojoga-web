@@ -12,16 +12,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatsGrid } from "@/components/ui/stats-grid";
 import { TopGamesList } from "@/components/ui/top-games-list";
 import {
-  BookOpen,
-  Heart,
   LogOut,
   ChevronRight,
   CalendarDays,
   FileText,
+  Trophy,
+  History,
 } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
-import { getUserStats, getMyLibrary, getMyWishlist } from "@/lib/api";
+import { getUserStats, getMyAchievements, getUserMatches } from "@/lib/api";
 import type { UserStats } from "@/types";
 
 export default function ProfilePage() {
@@ -29,8 +29,8 @@ export default function ProfilePage() {
   const { logout } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [libraryCount, setLibraryCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
+  const [achievementCount, setAchievementCount] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,13 +39,13 @@ export default function ProfilePage() {
 
     Promise.all([
       getUserStats(user.id),
-      getMyLibrary(),
-      getMyWishlist(),
+      getMyAchievements(),
+      getUserMatches(user.id),
     ])
-      .then(([s, lib, wish]) => {
+      .then(([s, achievements, matches]) => {
         setStats(s);
-        setLibraryCount(lib.length);
-        setWishlistCount(wish.length);
+        setAchievementCount(achievements.length);
+        setMatchCount(matches.length);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -95,39 +95,24 @@ export default function ProfilePage() {
       {/* Stats */}
       <StatsGrid stats={stats} loading={loading} />
 
-      {/* Collection links */}
-      <div className="space-y-2 mb-6">
-        <Link href="/library">
+      {/* Quick links */}
+      <div className="flex flex-col gap-2 mb-6">
+        <Link href="/matches" className="block">
           <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/15 shrink-0">
-              <BookOpen className="h-5 w-5 text-primary-400" />
+              <History className="h-5 w-5 text-primary-400" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Minha Biblioteca</p>
+              <p className="text-sm font-semibold text-foreground">Minhas Partidas</p>
               <p className="text-xs text-muted">
-                {loading ? "…" : `${libraryCount} ${libraryCount === 1 ? "jogo" : "jogos"}`}
+                {loading ? "…" : `${matchCount} ${matchCount === 1 ? "partida" : "partidas"}`}
               </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Card>
         </Link>
 
-        <Link href="/library?tab=wishlist">
-          <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-500/15 shrink-0">
-              <Heart className="h-5 w-5 text-accent-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Wishlist</p>
-              <p className="text-xs text-muted">
-                {loading ? "…" : `${wishlistCount} ${wishlistCount === 1 ? "jogo" : "jogos"}`}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted" />
-          </Card>
-        </Link>
-
-        <Link href="/scoring-templates">
+        <Link href="/scoring-templates" className="block">
           <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/15 shrink-0">
               <FileText className="h-5 w-5 text-green-400" />
@@ -135,6 +120,21 @@ export default function ProfilePage() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-foreground">Templates de Pontuação</p>
               <p className="text-xs text-muted">Crie e explore templates</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Card>
+        </Link>
+
+        <Link href="/achievements" className="block">
+          <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 shrink-0">
+              <Trophy className="h-5 w-5 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Conquistas</p>
+              <p className="text-xs text-muted">
+                {loading ? "…" : `${achievementCount} desbloqueada${achievementCount !== 1 ? "s" : ""}`}
+              </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Card>

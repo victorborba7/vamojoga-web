@@ -9,7 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
-import { Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -26,6 +26,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("expired") === "1") {
+      setError("Sua sessão expirou. Faça login novamente.");
+      // Clean up the URL without reloading
+      window.history.replaceState({}, "", "/login");
+    }
     const id = localStorage.getItem("saved_identifier");
     const n = localStorage.getItem("saved_name");
     if (id) {
@@ -52,7 +58,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login({ identifier: returning ? savedIdentifier! : identifier, password });
-      router.push("/collection");
+      router.push("/");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -67,9 +73,14 @@ export default function LoginPage() {
   return (
     <PageContainer>
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary-600/30">
-          <Zap className="h-8 w-8 text-white" />
-        </div>
+        <Image
+          src="/full_logo.png"
+          alt="VamoJoga"
+          width={180}
+          height={72}
+          className="mx-auto mb-6"
+          priority
+        />
 
         {returning && savedName ? (
           <>
@@ -116,6 +127,13 @@ export default function LoginPage() {
                 <Button type="submit" variant="primary" size="lg" disabled={loading}>
                   {loading ? "Entrando..." : "Entrar"}
                 </Button>
+
+                <Link
+                  href="/forgot-password"
+                  className="block text-center text-xs text-primary-400 hover:text-primary-300"
+                >
+                  Esqueci minha senha
+                </Link>
               </form>
             </Card>
           </>
@@ -160,6 +178,13 @@ export default function LoginPage() {
                 <Button type="submit" variant="primary" size="lg" disabled={loading}>
                   {loading ? "Entrando..." : "Entrar"}
                 </Button>
+
+                <Link
+                  href="/forgot-password"
+                  className="block text-center text-xs text-primary-400 hover:text-primary-300"
+                >
+                  Esqueci minha senha
+                </Link>
               </form>
             </Card>
 

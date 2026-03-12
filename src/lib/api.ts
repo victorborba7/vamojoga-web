@@ -21,6 +21,10 @@ import type {
   ScoringTemplateListResponse,
   ScoringTemplateCreate,
   ScoringTemplateUpdate,
+  AchievementResponse,
+  UserAchievementResponse,
+  PriceHistoryResponse,
+  GamePriceResponse,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -53,6 +57,13 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && token) {
+      // Token expired mid-session — clear it and redirect to login
+      localStorage.removeItem("token");
+      if (typeof window !== "undefined") {
+        window.location.href = "/login?expired=1";
+      }
+    }
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, body.detail || res.statusText);
   }
@@ -87,6 +98,33 @@ export async function login(data: UserLogin): Promise<TokenResponse> {
   return request<TokenResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token: string, new_password: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password }),
+  });
+}
+
+export async function verifyEmail(token: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function resendVerification(): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/resend-verification", {
+    method: "POST",
   });
 }
 
@@ -386,4 +424,42 @@ export async function deleteScoringTemplate(
   templateId: string
 ): Promise<void> {
   await request(`/scoring-templates/${templateId}`, { method: "DELETE" });
+}
+
+// ---- Achievements ----
+
+export async function getGlobalAchievements(): Promise<AchievementResponse[]> {
+  return request<AchievementResponse[]>("/achievements/global");
+}
+
+export async function getGameAchievements(gameId: string): Promise<AchievementResponse[]> {
+  return request<AchievementResponse[]>(`/achievements/game/${gameId}`);
+}
+
+export async function getMyAchievements(): Promise<UserAchievementResponse[]> {
+  return request<UserAchievementResponse[]>("/achievements/me");
+}
+
+export async function getUserAchievements(userId: string): Promise<UserAchievementResponse[]> {
+  return request<UserAchievementResponse[]>(`/achievements/user/${userId}`);
+}
+
+// ---- Prices ----
+
+export async function getGamePriceHistory(
+  gameId: string,
+  source?: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<PriceHistoryResponse> {
+  const params = new URLSearchParams();
+  if (source) params.set("source", source);
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  const qs = params.toString();
+  return request<PriceHistoryResponse>(`/games/${gameId}/prices${qs ? `?${qs}` : ""}`);
+}
+
+export async function getGameLatestPrices(gameId: string): Promise<GamePriceResponse[]> {
+  return request<GamePriceResponse[]>(`/games/${gameId}/prices/latest`);
 }

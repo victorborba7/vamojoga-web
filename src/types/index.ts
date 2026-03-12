@@ -17,6 +17,7 @@ export interface UserResponse {
   email: string;
   full_name: string | null;
   is_active: boolean;
+  email_verified: boolean;
   created_at: string;
 }
 
@@ -81,6 +82,7 @@ export interface MatchCreate {
   played_at?: string;
   notes?: string;
   scoring_template_id?: string;
+  match_mode?: string;
   players: MatchPlayerCreate[];
 }
 
@@ -114,6 +116,7 @@ export interface MatchResponse {
   scoring_template_id: string | null;
   scoring_template_name: string | null;
   players: MatchPlayerResponse[];
+  unlocked_achievements: NewlyUnlockedAchievement[];
   created_at: string;
 }
 
@@ -232,13 +235,16 @@ export interface ScoringTemplateCreate {
   game_id: string;
   name: string;
   description?: string;
+  match_mode?: string;
   fields: ScoringTemplateFieldCreate[];
 }
 
 export interface ScoringTemplateUpdate {
   name?: string;
   description?: string;
+  match_mode?: string;
   is_active?: boolean;
+  fields?: ScoringTemplateFieldCreate[];
 }
 
 export interface TemplateScoreEntry {
@@ -267,6 +273,7 @@ export interface ScoringTemplateResponse {
   created_by_username: string | null;
   name: string;
   description: string | null;
+  match_mode: string;
   is_active: boolean;
   fields: ScoringTemplateFieldResponse[];
   created_at: string;
@@ -281,7 +288,64 @@ export interface ScoringTemplateListResponse {
   created_by_username: string | null;
   name: string;
   description: string | null;
+  match_mode: string;
   is_active: boolean;
   field_count: number;
   created_at: string;
+}
+
+// ---- Achievements ----
+
+export interface AchievementResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  icon_url: string | null;
+  type: "global" | "game";
+  game_id: string | null;
+  criteria_key: string;
+  criteria_value: number;
+  points: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface UserAchievementResponse {
+  id: string;
+  user_id: string;
+  username: string | null;
+  achievement_id: string;
+  achievement_name: string;
+  achievement_description: string | null;
+  achievement_icon_url: string | null;
+  achievement_type: string;
+  achievement_points: number;
+  match_id: string | null;
+  unlocked_at: string;
+}
+
+export interface NewlyUnlockedAchievement {
+  id: string;
+  name: string;
+  description: string | null;
+  icon_url: string | null;
+  points: number;
+}
+
+// ---- Prices ----
+
+export interface GamePriceResponse {
+  id: string;
+  game_id: string;
+  source_name: string;
+  price: number;
+  currency: string;
+  url: string | null;
+  scraped_at: string;
+}
+
+export interface PriceHistoryResponse {
+  game_id: string;
+  game_name: string;
+  prices: GamePriceResponse[];
 }

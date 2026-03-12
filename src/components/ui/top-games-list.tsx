@@ -22,9 +22,9 @@ export function TopGamesList({
       <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2 px-1">
         {title}
       </p>
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {games.map((g) => (
-          <Link key={g.game_id} href={`/games/${g.game_id}`}>
+          <Link key={g.game_id} href={`/games/${g.game_id}`} className="block">
             <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
               {showIcon && (
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/10 shrink-0">

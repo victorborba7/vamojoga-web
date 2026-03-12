@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trophy, ArrowLeft, Calendar, Clock, Users } from "lucide-react";
+import { Trophy, ArrowLeft, Calendar, Clock, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
 import { getMatch } from "@/lib/api";
 import type { MatchResponse, MatchPlayerResponse } from "@/types";
@@ -20,6 +20,7 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<MatchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -30,7 +31,8 @@ export default function MatchDetailPage() {
       .then(setMatch)
       .catch(() => setError("Partida não encontrada"))
       .finally(() => setLoading(false));
-  }, [id, user, authLoading, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user, authLoading]);
 
   if (authLoading || loading) {
     return (
@@ -68,6 +70,7 @@ export default function MatchDetailPage() {
   const winners = match.players.filter((p) => p.is_winner);
   const losers = match.players.filter((p) => !p.is_winner);
   const isIndividual = hasDistinctPositions(match.players);
+  const isDraw = winners.length === 0 || match.players.every((p) => p.position === 1);
 
   const playedAt = new Date(match.played_at);
   const dateStr = playedAt.toLocaleDateString("pt-BR", {
@@ -116,10 +119,17 @@ export default function MatchDetailPage() {
         </div>
       </Card>
 
-      {isIndividual ? (
+      {isIndividual || isDraw ? (
         /* --- INDIVIDUAL VIEW --- */
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted">Classificação</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-muted">Classificação</h2>
+            {match.scoring_template_name && (
+              <span className="text-xs text-muted">
+                Template: {match.scoring_template_name}
+              </span>
+            )}
+          </div>
           <div className="space-y-2">
             {[...match.players]
               .sort((a, b) => a.position - b.position)
@@ -128,7 +138,13 @@ export default function MatchDetailPage() {
                   key={player.id}
                   className={`p-3! ${player.position === 1 ? "border-yellow-500/40 bg-yellow-500/5" : ""}`}
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    className={`flex items-center gap-3 w-full text-left ${player.template_scores?.length ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (!player.template_scores?.length) return;
+                      setExpandedPlayer(expandedPlayer === player.id ? null : player.id);
+                    }}
+                  >
                     <span
                       className={`text-base font-bold w-7 text-center ${
                         player.position === 1
@@ -156,13 +172,36 @@ export default function MatchDetailPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-foreground">
-                        {player.score}
-                      </p>
-                      <p className="text-xs text-muted">pts</p>
+                    <div className="text-right flex items-center gap-2">
+                      <div>
+                        <p className="text-lg font-bold text-foreground">
+                          {player.score}
+                        </p>
+                        <p className="text-xs text-muted">pts</p>
+                      </div>
+                      {player.template_scores?.length > 0 && (
+                        expandedPlayer === player.id
+                          ? <ChevronUp className="h-4 w-4 text-neutral-500" />
+                          : <ChevronDown className="h-4 w-4 text-neutral-500" />
+                      )}
                     </div>
-                  </div>
+                  </button>
+                  {expandedPlayer === player.id && player.template_scores?.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                      {player.template_scores.map((ts) => (
+                        <div key={ts.template_field_id} className="flex items-center justify-between px-2">
+                          <span className="text-xs text-muted">{ts.field_name || "Campo"}</span>
+                          <span className="text-xs font-semibold text-foreground">
+                            {ts.field_type === "boolean"
+                              ? (ts.boolean_value ? "Sim" : "Não")
+                              : ts.field_type === "ranking"
+                              ? `${ts.ranking_value ?? 0}º`
+                              : ts.numeric_value ?? 0}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               ))}
           </div>
@@ -247,6 +286,50 @@ export default function MatchDetailPage() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Pontuação detalhada por template */}
+      {match.scoring_template_id && match.players.some((p) => p.template_scores?.length > 0) && (
+        <div className="space-y-3 mt-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-muted">Pontuação Detalhada</h2>
+            {match.scoring_template_name && (
+              <span className="text-xs text-muted">{match.scoring_template_name}</span>
+            )}
+          </div>
+
+          {[...match.players]
+            .sort((a, b) => a.position - b.position)
+            .map((player) => (
+              <Card key={player.id} className="p-3!">
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar name={player.username || "?"} size="sm" />
+                  <span className="text-sm font-semibold text-foreground flex-1 truncate">
+                    {player.username || "Jogador"}
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    {player.score} pts
+                  </span>
+                </div>
+                {player.template_scores?.length > 0 && (
+                  <div className="space-y-1 border-t border-border pt-2">
+                    {player.template_scores.map((ts) => (
+                      <div key={ts.template_field_id} className="flex items-center justify-between px-1">
+                        <span className="text-xs text-muted">{ts.field_name || "Campo"}</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {ts.field_type === "boolean"
+                            ? (ts.boolean_value ? "Sim" : "Não")
+                            : ts.field_type === "ranking"
+                            ? `${ts.ranking_value ?? 0}º`
+                            : ts.numeric_value ?? 0}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            ))}
         </div>
       )}
 

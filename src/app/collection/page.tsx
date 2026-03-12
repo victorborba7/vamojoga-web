@@ -35,7 +35,7 @@ export default function CollectionsPage() {
     setCreating(true);
     try {
       const novo = await createCollection(formName.trim(), formDesc.trim() || undefined);
-      router.push(`/collections/${novo.id}`);
+      router.push(`/collection/${novo.id}`);
     } finally {
       setCreating(false);
     }

@@ -222,7 +222,8 @@ function LibraryTab() {
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [visibleCount, entries.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.length]);
 
   function toggleView(mode: ViewMode) {
     setViewMode(mode);
@@ -291,6 +292,8 @@ function LibraryTab() {
   }
 
   async function handleRemove(gameId: string) {
+    const entry = entries.find((e) => e.game.id === gameId);
+    if (!confirm(`Remover "${entry?.game.name ?? "jogo"}" da sua biblioteca?`)) return;
     setRemoving(gameId);
     try {
       await removeFromLibrary(gameId);
@@ -532,7 +535,8 @@ function WishlistTab() {
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [visibleCount, entries.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.length]);
 
   function toggleView(mode: ViewMode) {
     setViewMode(mode);
@@ -560,6 +564,8 @@ function WishlistTab() {
   }
 
   async function handleRemove(gameId: string) {
+    const entry = entries.find((e) => e.game.id === gameId);
+    if (!confirm(`Remover "${entry?.game.name ?? "jogo"}" da sua lista de desejos?`)) return;
     setRemoving(gameId);
     try {
       await removeFromWishlist(gameId);

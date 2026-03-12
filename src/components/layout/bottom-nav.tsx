@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, PlusCircle, Trophy, History, Users } from "lucide-react";
+import { Home, Gamepad2, PlusCircle, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -13,11 +13,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/library", label: "Coleção", icon: BookOpen },
-  { href: "/matches", label: "Partidas", icon: History },
-  { href: "/matches/new", label: "Nova", icon: PlusCircle },
-  { href: "/friends", label: "Amigos", icon: Users },
-  { href: "/leaderboard", label: "Ranking", icon: Trophy },
+  { href: "/", label: "Início", icon: Home },
+  { href: "/games", label: "Jogos", icon: Gamepad2 },
+  { href: "/matches/new", label: "Partida", icon: PlusCircle },
+  { href: "/social", label: "Social", icon: Users },
+  { href: "/profile", label: "Perfil", icon: User },
 ];
 
 const hiddenRoutes = ["/login", "/register"];
@@ -35,12 +35,12 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md items-center justify-around py-2">
         {navItems.map((item) => {
           const isActive =
-            item.href === "/matches"
-              ? pathname === "/matches" || (pathname.startsWith("/matches/") && !pathname.startsWith("/matches/new"))
-              : pathname.startsWith(item.href);
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           const isMainAction = item.href === "/matches/new";
-          const showBadge = item.href === "/friends" && pendingFriendsCount > 0;
+          const showBadge = item.href === "/social" && pendingFriendsCount > 0;
 
           return (
             <Link

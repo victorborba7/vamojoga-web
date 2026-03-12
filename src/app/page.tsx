@@ -4,28 +4,72 @@ import { useEffect, useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trophy, Zap, Users, ChevronRight, LogOut } from "lucide-react";
+import { MatchCard } from "@/components/match/match-card";
+import { Zap, Sword, Trophy, Users, ChevronRight, History, Mail } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { listUsers, getGlobalRanking } from "@/lib/api";
+import { getUserMatches, getUserStats, getGlobalRanking, resendVerification } from "@/lib/api";
+import type { MatchResponse, UserStats, RankingEntry } from "@/types";
+
+function EmailVerificationBanner() {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function handleResend() {
+    setSending(true);
+    try {
+      await resendVerification();
+      setSent(true);
+    } catch {
+      // silently ignore
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
+      <Mail className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-amber-400">Confirme seu e-mail</p>
+        <p className="text-xs text-muted mt-0.5">
+          Verifique sua caixa de entrada para ativar todos os recursos.
+        </p>
+        {sent ? (
+          <p className="text-xs text-gain mt-2">E-mail reenviado!</p>
+        ) : (
+          <button
+            onClick={handleResend}
+            disabled={sending}
+            className="text-xs text-primary-400 hover:text-primary-300 mt-2 font-medium cursor-pointer"
+          >
+            {sending ? "Enviando..." : "Reenviar e-mail de verificação"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const { user, loading, logout } = useAuth();
-  const [playerCount, setPlayerCount] = useState(0);
-  const [matchCount, setMatchCount] = useState(0);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [recentMatches, setRecentMatches] = useState<MatchResponse[]>([]);
+  const [topRanking, setTopRanking] = useState<RankingEntry[]>([]);
 
   useEffect(() => {
     if (!user) return;
 
-    listUsers()
-      .then((users) => setPlayerCount(users.length))
-      .catch(() => {});
-
-    getGlobalRanking(1)
-      .then((ranking) => {
-        if (ranking.length > 0) {
-          setMatchCount(ranking[0].total_matches);
-        }
+    Promise.all([
+      getUserStats(user.id),
+      getUserMatches(user.id),
+      getGlobalRanking(3),
+    ])
+      .then(([s, m, r]) => {
+        setStats(s);
+        setRecentMatches(m.slice(0, 3));
+        setTopRanking(r);
       })
       .catch(() => {});
   }, [user]);
@@ -34,7 +78,7 @@ export default function Home() {
     return (
       <PageContainer>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <p className="text-muted">Carregando...</p>
+          <div className="h-8 w-8 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
         </div>
       </PageContainer>
     );
@@ -44,12 +88,14 @@ export default function Home() {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary-600/30">
-            <Zap className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            VamoJoga
-          </h1>
+          <Image
+            src="/full_logo.png"
+            alt="VamoJoga"
+            width={200}
+            height={80}
+            className="mx-auto mb-2"
+            priority
+          />
           <p className="mt-2 text-sm text-muted mb-8">
             Registre partidas e veja quem manda no ranking
           </p>
@@ -72,17 +118,17 @@ export default function Home() {
 
   return (
     <PageContainer>
-      {/* Hero */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary-600/30">
-          <Zap className="h-8 w-8 text-white" />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          VamoJoga
-        </h1>
-        <p className="mt-2 text-sm text-muted">
+      {/* Email verification banner */}
+      {user && !user.email_verified && (
+        <EmailVerificationBanner />
+      )}
+
+      {/* Greeting */}
+      <div className="mb-6">
+        <p className="text-sm text-muted">
           Olá, <span className="text-primary-400 font-medium">{user.username}</span>!
         </p>
+        <h1 className="text-2xl font-bold text-foreground">Início</h1>
       </div>
 
       {/* CTA Principal */}
@@ -94,68 +140,84 @@ export default function Home() {
       </Link>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Card className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <Users className="h-5 w-5 text-primary-400" />
+      {stats && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <Card className="flex flex-col items-center text-center p-3">
+            <Sword className="h-4 w-4 text-primary-400 mb-1" />
+            <p className="text-xl font-bold text-foreground">{stats.total_matches}</p>
+            <p className="text-[10px] text-muted">Partidas</p>
+          </Card>
+          <Card className="flex flex-col items-center text-center p-3">
+            <Trophy className="h-4 w-4 text-yellow-400 mb-1" />
+            <p className="text-xl font-bold text-foreground">{stats.total_wins}</p>
+            <p className="text-[10px] text-muted">Vitórias</p>
+          </Card>
+          <Card className="flex flex-col items-center text-center p-3">
+            <Users className="h-4 w-4 text-accent-400 mb-1" />
+            <p className="text-xl font-bold text-foreground">{stats.matches_by_game.length}</p>
+            <p className="text-[10px] text-muted">Jogos</p>
+          </Card>
+        </div>
+      )}
+
+      {/* Recent matches */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Partidas recentes
+          </p>
+          <Link
+            href="/matches"
+            className="flex items-center gap-0.5 text-xs text-primary-400 hover:underline"
+          >
+            Ver todas <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {recentMatches.length === 0 ? (
+          <Card className="flex flex-col items-center gap-2 py-8 text-center">
+            <History className="h-8 w-8 text-muted" />
+            <p className="text-sm text-muted">Nenhuma partida ainda</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {recentMatches.map((m) => (
+              <MatchCard key={m.id} match={m} />
+            ))}
           </div>
-          <p className="text-2xl font-bold text-foreground">{playerCount}</p>
-          <p className="text-xs text-muted">Jogadores</p>
-        </Card>
-        <Card className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <Trophy className="h-5 w-5 text-gold" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">{matchCount}</p>
-          <p className="text-xs text-muted">Partidas</p>
-        </Card>
+        )}
       </div>
 
-      {/* Links Rápidos */}
-      <div className="space-y-3">
-        <Link href="/matches" className="block">
-          <Card className="flex items-center justify-between hover:bg-card-hover cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600/15">
-                <Zap className="h-5 w-5 text-primary-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Histórico de Partidas
+      {/* Top ranking preview */}
+      {topRanking.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Top ranking
+            </p>
+            <Link
+              href="/leaderboard"
+              className="flex items-center gap-0.5 text-xs text-primary-400 hover:underline"
+            >
+              Ver ranking <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <Card className="divide-y divide-white/5">
+            {topRanking.map((entry, i) => (
+              <div key={entry.user_id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-sm font-bold text-muted w-5">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {entry.username}
+                  </p>
+                </div>
+                <p className="text-xs text-muted">
+                  {entry.total_wins}V / {entry.total_matches}P
                 </p>
-                <p className="text-xs text-muted">Veja as últimas partidas</p>
               </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-500" />
+            ))}
           </Card>
-        </Link>
-
-        <Link href="/leaderboard" className="block">
-          <Card className="flex items-center justify-between hover:bg-card-hover cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/15">
-                <Trophy className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Ranking Global
-                </p>
-                <p className="text-xs text-muted">Quem é o melhor?</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-neutral-500" />
-          </Card>
-        </Link>
-      </div>
-
-      {/* Logout */}
-      <button
-        onClick={logout}
-        className="mt-8 flex items-center justify-center gap-2 w-full text-sm text-neutral-500 hover:text-loss transition-colors cursor-pointer"
-      >
-        <LogOut className="h-4 w-4" />
-        Sair
-      </button>
+        </div>
+      )}
     </PageContainer>
   );
 }

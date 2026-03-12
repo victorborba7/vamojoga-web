@@ -28,6 +28,9 @@ export function MatchCard({ match }: MatchCardProps) {
   const positions = match.players.map((p) => p.position);
   const isIndividual = new Set(positions).size === match.players.length;
 
+  // Detect draw: no winners or all players share position 1
+  const isDraw = winners.length === 0 || match.players.every((p) => p.position === 1);
+
   // For teams: use the score from the first player of each side
   const winnerScore = winners[0]?.score ?? 0;
   const loserScore = losers[0]?.score ?? 0;
@@ -54,12 +57,16 @@ export function MatchCard({ match }: MatchCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground truncate">
-              {isIndividual
+              {isDraw
+                ? "Empate"
+                : isIndividual
                 ? `${sortedPlayers[0]?.username || "?"} venceu`
                 : `${winnerNames}`}
             </span>
-            <span className="text-xs font-bold text-win shrink-0">
-              {isIndividual
+            <span className={`text-xs font-bold shrink-0 ${isDraw ? "text-amber-400" : "text-win"}`}>
+              {isDraw
+                ? `${sortedPlayers[0]?.score ?? 0} pts`
+                : isIndividual
                 ? `${sortedPlayers[0]?.score ?? 0} pts`
                 : `${winnerScore} × ${loserScore}`}
             </span>
@@ -85,8 +92,8 @@ export function MatchCard({ match }: MatchCardProps) {
       {/* Expanded content */}
       {expanded && (
         <div className="mt-4 pt-3 border-t border-border space-y-3">
-          {isIndividual ? (
-            /* Individual: show top 3 ranking */
+          {isIndividual || isDraw ? (
+            /* Individual or draw: show players ranked */
             <div className="space-y-2">
               {sortedPlayers.slice(0, 3).map((player) => (
                 <div key={player.id} className="flex items-center gap-2">
@@ -133,13 +140,13 @@ export function MatchCard({ match }: MatchCardProps) {
                     <p key={p.id} className="text-xs text-muted truncate">{p.username}</p>
                   ))}
                 </div>
-                <Badge variant="win">Vencedor</Badge>
+                <Badge variant="win">{isDraw ? "Empate" : "Vencedor"}</Badge>
               </div>
 
               <div className="flex items-center gap-3 px-3">
-                <span className="text-2xl font-bold text-win">{winnerScore}</span>
+                <span className={`text-2xl font-bold ${isDraw ? "text-amber-400" : "text-win"}`}>{winnerScore}</span>
                 <span className="text-neutral-600">×</span>
-                <span className="text-2xl font-bold text-neutral-400">{loserScore}</span>
+                <span className={`text-2xl font-bold ${isDraw ? "text-amber-400" : "text-neutral-400"}`}>{loserScore}</span>
               </div>
 
               <div className="flex flex-col items-center gap-1.5 flex-1">
@@ -153,7 +160,7 @@ export function MatchCard({ match }: MatchCardProps) {
                     <p key={p.id} className="text-xs text-muted truncate">{p.username}</p>
                   ))}
                 </div>
-                <Badge variant="loss">Derrota</Badge>
+                <Badge variant="loss">{isDraw ? "Empate" : "Derrota"}</Badge>
               </div>
             </div>
           )}

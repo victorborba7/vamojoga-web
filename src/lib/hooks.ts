@@ -12,7 +12,8 @@ export function useAuthGuard() {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-  }, [user, loading, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]);
 
   return { user, loading };
 }
@@ -39,7 +40,8 @@ export function useInfiniteScroll(
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [sentinelRef, visibleCount, totalCount, pageSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalCount, pageSize]);
 
   return { visibleCount };
 }

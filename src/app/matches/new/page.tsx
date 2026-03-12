@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical } from "lucide-react";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, ApiError } from "@/lib/api";
 import type {
@@ -19,12 +20,14 @@ import type {
   ScoringTemplateFieldCreate,
   ScoringFieldType,
   TemplateScoreEntry,
+  NewlyUnlockedAchievement,
 } from "@/types";
 import { GameAutocomplete } from "@/components/match/game-autocomplete";
 import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
 
-type Step = "game" | "mode" | "players" | "score" | "confirm";
+type Step = "game" | "template" | "players" | "score" | "confirm";
 type MatchMode = "teams" | "individual";
+type ScoringType = "numeric" | "ranking" | "winner_takes_all";
 
 interface IndividualPlayer {
   user: UserResponse;
@@ -72,6 +75,7 @@ export default function NewMatchPage() {
 
   // Individual mode
   const [individualPlayers, setIndividualPlayers] = useState<IndividualPlayer[]>([]);
+  const [scoringType, setScoringType] = useState<ScoringType>("numeric");
 
   // Scoring template
   const [availableTemplates, setAvailableTemplates] = useState<ScoringTemplateListResponse[]>([]);
@@ -84,10 +88,12 @@ export default function NewMatchPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [unlockedAchievements, setUnlockedAchievements] = useState<NewlyUnlockedAchievement[]>([]);
 
   // Inline template creation
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateMatchMode, setNewTemplateMatchMode] = useState<MatchMode>("individual");
   const [newTemplateFields, setNewTemplateFields] = useState<InlineFieldDraft[]>([]);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
@@ -192,6 +198,16 @@ export default function NewMatchPage() {
     setIndividualPlayers((prev) => prev.map((p, i) => ({ ...p, position: i + 1 })));
   }
 
+  function setWinner(playerId: string) {
+    setIndividualPlayers((prev) =>
+      prev.map((p) => ({
+        ...p,
+        score: p.user.id === playerId ? 1 : 0,
+        position: p.user.id === playerId ? 1 : 2,
+      }))
+    );
+  }
+
   function applyTiebreaker(
     players: IndividualPlayer[],
     tbField: { id: string; field_type: string }
@@ -258,9 +274,11 @@ export default function NewMatchPage() {
         }
         return players;
       });
-    } else {
+    } else if (scoringType === "numeric") {
       autoRankByScore();
     }
+    // ranking: positions already set by manual ordering
+    // winner_takes_all: positions already set by setWinner
     setStep("confirm");
   }
 
@@ -270,6 +288,7 @@ export default function NewMatchPage() {
       const t = await getScoringTemplate(templateId);
       setSelectedTemplate(t);
       setUseTemplate(true);
+      setMode(t.match_mode === "team" ? "teams" : "individual");
       setTemplateScores({});
     } catch {
       setSelectedTemplate(null);
@@ -286,6 +305,7 @@ export default function NewMatchPage() {
   function openCreateTemplate() {
     setShowCreateTemplate(true);
     setNewTemplateName("");
+    setNewTemplateMatchMode("individual");
     setNewTemplateFields([newInlineField()]);
   }
 
@@ -312,6 +332,7 @@ export default function NewMatchPage() {
       const created = await createScoringTemplate({
         game_id: selectedGame.id,
         name: newTemplateName.trim(),
+        match_mode: newTemplateMatchMode === "teams" ? "team" : "individual",
         fields,
       });
       // Refresh list and auto-select
@@ -390,12 +411,17 @@ export default function NewMatchPage() {
     }
 
     try {
-      await createMatch({
+      const result = await createMatch({
         game_id: selectedGame.id,
         scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
+        match_mode: mode === "teams" ? "team" : "individual",
         players,
       });
-      router.push("/matches");
+      if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
+        setUnlockedAchievements(result.unlocked_achievements);
+      } else {
+        router.push("/matches");
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -428,10 +454,7 @@ export default function NewMatchPage() {
 
   const canConfirmIndividual = individualPlayers.length >= 2;
 
-  const steps: Step[] =
-    mode === "teams"
-      ? ["game", "mode", "players", "score", "confirm"]
-      : ["game", "mode", "players", "score", "confirm"];
+  const steps: Step[] = ["game", "template", "players", "score", "confirm"];
 
   const stepIndex = steps.indexOf(step);
 
@@ -453,8 +476,8 @@ export default function NewMatchPage() {
         subtitle={
           step === "game"
             ? "Escolha o jogo"
-            : step === "mode"
-            ? "Modo de jogo"
+            : step === "template"
+            ? "Template e modo de jogo"
             : step === "players"
             ? mode === "teams"
               ? "Monte os times"
@@ -486,401 +509,50 @@ export default function NewMatchPage() {
             selectedGame={selectedGame}
             onSelect={(game) => {
               setSelectedGame(game);
-              setStep("mode");
+              setStep("template");
             }}
             onClear={() => setSelectedGame(null)}
           />
         </div>
       )}
 
-      {/* STEP: Modo de Jogo */}
-      {step === "mode" && (
+      {/* STEP: Template e Modo de Jogo */}
+      {step === "template" && (
         <div className="space-y-4">
-          <p className="text-xs text-muted mb-2 font-medium">Como será a partida?</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                setMode("teams");
-                setIndividualPlayers([]);
-                if (user) {
-                  setTeamA([user]);
-                  setTeamB([]);
-                } else {
-                  setTeamA([]);
-                  setTeamB([]);
-                }
-                setScoreA(0);
-                setScoreB(0);
-                setStep("players");
-              }}
-              className="flex flex-col items-center gap-3 rounded-xl border border-border p-6 transition-colors cursor-pointer hover:bg-card-hover hover:border-primary-600"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-600/20">
-                <Users className="h-7 w-7 text-primary-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">Times</p>
-                <p className="text-xs text-muted mt-1">Time A vs Time B</p>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setMode("individual");
-                setTeamA([]);
-                setTeamB([]);
-                setScoreA(0);
-                setScoreB(0);
-                if (user) {
-                  setIndividualPlayers([
-                    { user, score: 0, position: 1 },
-                  ]);
-                } else {
-                  setIndividualPlayers([]);
-                }
-                setStep("players");
-              }}
-              className="flex flex-col items-center gap-3 rounded-xl border border-border p-6 transition-colors cursor-pointer hover:bg-card-hover hover:border-primary-600"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-500/20">
-                <User className="h-7 w-7 text-accent-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">Individual</p>
-                <p className="text-xs text-muted mt-1">Cada um por si</p>
-              </div>
-            </button>
-          </div>
-
-          <Button variant="outline" size="lg" onClick={() => setStep("game")}>
-            Voltar
-          </Button>
-        </div>
-      )}
-
-      {/* STEP: Selecionar Jogadores — TIMES */}
-      {step === "players" && mode === "teams" && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectingFor("A")}
-              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
-                selectingFor === "A"
-                  ? "bg-primary-600 text-white"
-                  : "bg-neutral-800 text-neutral-400"
-              }`}
-            >
-              Time A ({teamA.length})
-            </button>
-            <button
-              onClick={() => setSelectingFor("B")}
-              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
-                selectingFor === "B"
-                  ? "bg-primary-600 text-white"
-                  : "bg-neutral-800 text-neutral-400"
-              }`}
-            >
-              Time B ({teamB.length})
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="min-h-25">
-              <p className="text-xs text-muted mb-2 font-medium">Time A</p>
-              {teamA.length === 0 ? (
-                <p className="text-xs text-neutral-600">Sem jogadores</p>
-              ) : (
-                <div className="space-y-2">
-                  {teamA.map((p) => (
-                    <div key={p.id} className="flex items-center gap-2">
-                      <Avatar name={p.username} size="sm" />
-                      <span className="text-xs text-foreground flex-1 truncate">
-                        {p.username}
-                      </span>
-                      <button
-                        onClick={() => removePlayer(p.id, "A")}
-                        className="text-neutral-500 hover:text-loss cursor-pointer"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            <Card className="min-h-25">
-              <p className="text-xs text-muted mb-2 font-medium">Time B</p>
-              {teamB.length === 0 ? (
-                <p className="text-xs text-neutral-600">Sem jogadores</p>
-              ) : (
-                <div className="space-y-2">
-                  {teamB.map((p) => (
-                    <div key={p.id} className="flex items-center gap-2">
-                      <Avatar name={p.username} size="sm" />
-                      <span className="text-xs text-foreground flex-1 truncate">
-                        {p.username}
-                      </span>
-                      <button
-                        onClick={() => removePlayer(p.id, "B")}
-                        className="text-neutral-500 hover:text-loss cursor-pointer"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-
-          <div>
-            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
-              <UserPlus className="h-3.5 w-3.5" />
-              Selecione para o Time {selectingFor}
-            </p>
-            <PlayerAutocomplete
-              onSelect={(player) => addPlayer(player)}
-              excludeIds={selectedIds}
-              placeholder={`Buscar jogador para o Time ${selectingFor}...`}
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg" onClick={() => setStep("mode")}>
-              Voltar
-            </Button>
-            <Button
-              variant="primary"
-              size="lg"
-              disabled={!canGoToScore}
-              onClick={() => setStep("score")}
-            >
-              Próximo: Placar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP: Selecionar Jogadores — INDIVIDUAL */}
-      {step === "players" && mode === "individual" && (
-        <div className="space-y-4">
-          {/* Jogadores adicionados */}
-          <Card className="min-h-25">
-            <p className="text-xs text-muted mb-2 font-medium">
-              Jogadores ({individualPlayers.length})
-            </p>
-            {individualPlayers.length === 0 ? (
-              <p className="text-xs text-neutral-600">Nenhum jogador adicionado</p>
-            ) : (
-              <div className="space-y-2">
-                {individualPlayers.map((p, idx) => (
-                  <div key={p.user.id} className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-500 w-5 text-center font-mono">
-                      {idx + 1}
-                    </span>
-                    <Avatar name={p.user.username} size="sm" />
-                    <span className="text-xs text-foreground flex-1 truncate">
-                      {p.user.username}
-                    </span>
-                    <button
-                      onClick={() => removeIndividualPlayer(p.user.id)}
-                      className="text-neutral-500 hover:text-loss cursor-pointer"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Autocomplete para adicionar jogadores */}
-          <div>
-            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
-              <UserPlus className="h-3.5 w-3.5" />
-              Adicionar jogador
-            </p>
-            <PlayerAutocomplete
-              onSelect={(player) => addIndividualPlayer(player)}
-              excludeIds={selectedIds}
-              placeholder="Buscar jogador..."
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg" onClick={() => setStep("mode")}>
-              Voltar
-            </Button>
-            <Button
-              variant="primary"
-              size="lg"
-              disabled={!canGoToScore}
-              onClick={() => setStep("score")}
-            >
-              Próximo: Placar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP: Placar — TIMES */}
-      {step === "score" && mode === "teams" && (
-        <div className="space-y-6">
+          {/* Template selection */}
           <Card>
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col items-center gap-3 flex-1">
-                <div className="flex -space-x-2">
-                  {teamA.map((p) => (
-                    <Avatar key={p.id} name={p.username} size="sm" />
-                  ))}
-                </div>
-                <span className="text-xs text-muted font-medium">Time A</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setScoreA(Math.max(0, scoreA - 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreA}
-                    onChange={(e) => setScoreA(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => setScoreA(scoreA + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              <span className="text-2xl font-bold text-neutral-600">×</span>
-
-              <div className="flex flex-col items-center gap-3 flex-1">
-                <div className="flex -space-x-2">
-                  {teamB.map((p) => (
-                    <Avatar key={p.id} name={p.username} size="sm" />
-                  ))}
-                </div>
-                <span className="text-xs text-muted font-medium">Time B</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setScoreB(Math.max(0, scoreB - 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreB}
-                    onChange={(e) => setScoreB(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => setScoreB(scoreB + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
-              Voltar
-            </Button>
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => setStep("confirm")}
-              disabled={scoreA === scoreB}
-            >
-              Confirmar
-            </Button>
-          </div>
-
-          {scoreA === scoreB && scoreA > 0 && (
-            <p className="text-center text-xs text-loss">
-              Empate não é permitido. Defina um vencedor!
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* STEP: Placar — INDIVIDUAL */}
-      {step === "score" && mode === "individual" && (
-        <div className="space-y-4">
-          {/* Template selector */}
-          <Card>
-            <p className="text-xs text-muted font-medium mb-2">Método de pontuação</p>
-            <div className="flex gap-2 mb-2">
-              <button
-                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  !useTemplate
-                    ? "bg-primary-600 text-white"
-                    : "bg-neutral-800 text-neutral-400"
-                }`}
-                onClick={() => { handleClearTemplate(); setShowCreateTemplate(false); }}
-              >
-                Padrão
-              </button>
-              <button
-                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  useTemplate
-                    ? "bg-primary-600 text-white"
-                    : "bg-neutral-800 text-neutral-400"
-                }`}
-                onClick={() => {
-                  if (!selectedTemplate && availableTemplates.length > 0) {
-                    handleSelectTemplate(availableTemplates[0].id);
-                  } else if (availableTemplates.length === 0) {
-                    openCreateTemplate();
-                  } else {
-                    setUseTemplate(true);
-                  }
-                }}
-              >
-                Template
-              </button>
-            </div>
-            {useTemplate && availableTemplates.length > 0 && (
+            <p className="text-xs text-muted font-medium mb-2">Template de pontuação</p>
+            {availableTemplates.length > 0 ? (
               <div className="space-y-2">
                 <select
                   className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground focus:border-primary-600 focus:outline-none"
                   value={selectedTemplate?.id ?? ""}
-                  onChange={(e) => handleSelectTemplate(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleSelectTemplate(e.target.value);
+                    } else {
+                      handleClearTemplate();
+                    }
+                  }}
                 >
+                  <option value="">Sem template</option>
                   {availableTemplates.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.field_count} campos)
+                      {t.name} ({t.field_count} campos) — {t.match_mode === "team" ? "Times" : "Individual"}
                     </option>
                   ))}
                 </select>
-                {!showCreateTemplate && (
-                  <button
-                    onClick={openCreateTemplate}
-                    className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Criar novo template
-                  </button>
-                )}
               </div>
+            ) : (
+              <p className="text-xs text-neutral-500 mb-1">Nenhum template disponível para este jogo.</p>
             )}
-            {!useTemplate && !showCreateTemplate && (
+            {!showCreateTemplate && (
               <button
                 onClick={openCreateTemplate}
-                className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer mt-1"
+                className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors cursor-pointer mt-2"
               >
                 <Plus className="h-3 w-3" />
-                Criar template para este jogo
+                Criar novo template
               </button>
             )}
           </Card>
@@ -904,6 +576,35 @@ export default function NewMatchPage() {
                 value={newTemplateName}
                 onChange={(e) => setNewTemplateName(e.target.value)}
               />
+
+              {/* Match mode for new template */}
+              <div className="mb-3">
+                <p className="text-xs text-muted mb-1.5 font-medium">Modo de jogo do template</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setNewTemplateMatchMode("individual")}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                      newTemplateMatchMode === "individual"
+                        ? "border-primary-600 bg-primary-600/10 text-primary-400"
+                        : "border-border text-muted hover:text-foreground"
+                    }`}
+                  >
+                    <User size={13} />
+                    Individual
+                  </button>
+                  <button
+                    onClick={() => setNewTemplateMatchMode("teams")}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                      newTemplateMatchMode === "teams"
+                        ? "border-primary-600 bg-primary-600/10 text-primary-400"
+                        : "border-border text-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Users size={13} />
+                    Times
+                  </button>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 {newTemplateFields.map((f, idx) => (
@@ -1014,6 +715,507 @@ export default function NewMatchPage() {
             </Card>
           )}
 
+          {/* Mode selector (shown when no template is selected) */}
+          {!useTemplate && !showCreateTemplate && (
+            <Card>
+              <p className="text-xs text-muted font-medium mb-2">Modo de jogo</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setMode("individual")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-colors cursor-pointer ${
+                    mode === "individual"
+                      ? "border-primary-600 bg-primary-600/10"
+                      : "border-border hover:bg-card-hover hover:border-primary-600"
+                  }`}
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${mode === "individual" ? "bg-primary-600/20" : "bg-accent-500/20"}`}>
+                    <User className={`h-5 w-5 ${mode === "individual" ? "text-primary-400" : "text-accent-400"}`} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-foreground">Individual</p>
+                    <p className="text-[10px] text-muted mt-0.5">Cada um por si</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setMode("teams")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-colors cursor-pointer ${
+                    mode === "teams"
+                      ? "border-primary-600 bg-primary-600/10"
+                      : "border-border hover:bg-card-hover hover:border-primary-600"
+                  }`}
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${mode === "teams" ? "bg-primary-600/20" : "bg-primary-600/20"}`}>
+                    <Users className={`h-5 w-5 ${mode === "teams" ? "text-primary-400" : "text-primary-400"}`} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-foreground">Times</p>
+                    <p className="text-[10px] text-muted mt-0.5">Time A vs Time B</p>
+                  </div>
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* Scoring type selector (individual, no template) */}
+          {!useTemplate && !showCreateTemplate && mode === "individual" && (
+            <Card>
+              <p className="text-xs text-muted font-medium mb-2">Tipo de pontuação</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setScoringType("numeric")}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors cursor-pointer ${
+                    scoringType === "numeric"
+                      ? "border-primary-600 bg-primary-600/10"
+                      : "border-border hover:bg-card-hover hover:border-primary-600"
+                  }`}
+                >
+                  <Hash className={`h-5 w-5 ${scoringType === "numeric" ? "text-primary-400" : "text-muted"}`} />
+                  <p className="text-xs font-semibold text-foreground">Numérica</p>
+                  <p className="text-[10px] text-muted text-center">Pontos por jogador</p>
+                </button>
+                <button
+                  onClick={() => setScoringType("ranking")}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors cursor-pointer ${
+                    scoringType === "ranking"
+                      ? "border-primary-600 bg-primary-600/10"
+                      : "border-border hover:bg-card-hover hover:border-primary-600"
+                  }`}
+                >
+                  <BarChart3 className={`h-5 w-5 ${scoringType === "ranking" ? "text-primary-400" : "text-muted"}`} />
+                  <p className="text-xs font-semibold text-foreground">Ranking</p>
+                  <p className="text-[10px] text-muted text-center">Ordene as posições</p>
+                </button>
+                <button
+                  onClick={() => setScoringType("winner_takes_all")}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors cursor-pointer ${
+                    scoringType === "winner_takes_all"
+                      ? "border-primary-600 bg-primary-600/10"
+                      : "border-border hover:bg-card-hover hover:border-primary-600"
+                  }`}
+                >
+                  <Crown className={`h-5 w-5 ${scoringType === "winner_takes_all" ? "text-primary-400" : "text-muted"}`} />
+                  <p className="text-xs font-semibold text-foreground">Vencedor</p>
+                  <p className="text-[10px] text-muted text-center">1 ganha, resto perde</p>
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* Selected template info */}
+          {useTemplate && selectedTemplate && (
+            <Card className="border-primary-600/30 bg-primary-600/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{selectedTemplate.name}</p>
+                  <p className="text-xs text-muted mt-0.5">
+                    {selectedTemplate.fields.length} campos — {selectedTemplate.match_mode === "team" ? "Times" : "Individual"}
+                  </p>
+                </div>
+                <button
+                  onClick={handleClearTemplate}
+                  className="text-neutral-400 hover:text-foreground p-1 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {error && (
+            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("game")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => {
+                // Reset players when moving to players step
+                if (mode === "teams") {
+                  if (user) {
+                    setTeamA([user]);
+                    setTeamB([]);
+                  } else {
+                    setTeamA([]);
+                    setTeamB([]);
+                  }
+                  setScoreA(0);
+                  setScoreB(0);
+                  setIndividualPlayers([]);
+                } else {
+                  setTeamA([]);
+                  setTeamB([]);
+                  setScoreA(0);
+                  setScoreB(0);
+                  if (user) {
+                    setIndividualPlayers([{ user, score: 0, position: 1 }]);
+                  } else {
+                    setIndividualPlayers([]);
+                  }
+                }
+                setStep("players");
+              }}
+            >
+              Próximo: Jogadores
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Selecionar Jogadores — TIMES */}
+      {step === "players" && mode === "teams" && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectingFor("A")}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                selectingFor === "A"
+                  ? "bg-primary-600 text-white"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              Time A ({teamA.length})
+            </button>
+            <button
+              onClick={() => setSelectingFor("B")}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer ${
+                selectingFor === "B"
+                  ? "bg-primary-600 text-white"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              Time B ({teamB.length})
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="min-h-25">
+              <p className="text-xs text-muted mb-2 font-medium">Time A</p>
+              {teamA.length === 0 ? (
+                <p className="text-xs text-neutral-600">Sem jogadores</p>
+              ) : (
+                <div className="space-y-2">
+                  {teamA.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <Avatar name={p.username} size="sm" />
+                      <span className="text-xs text-foreground flex-1 truncate">
+                        {p.username}
+                      </span>
+                      <button
+                        onClick={() => removePlayer(p.id, "A")}
+                        className="text-neutral-500 hover:text-loss cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="min-h-25">
+              <p className="text-xs text-muted mb-2 font-medium">Time B</p>
+              {teamB.length === 0 ? (
+                <p className="text-xs text-neutral-600">Sem jogadores</p>
+              ) : (
+                <div className="space-y-2">
+                  {teamB.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <Avatar name={p.username} size="sm" />
+                      <span className="text-xs text-foreground flex-1 truncate">
+                        {p.username}
+                      </span>
+                      <button
+                        onClick={() => removePlayer(p.id, "B")}
+                        className="text-neutral-500 hover:text-loss cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
+              <UserPlus className="h-3.5 w-3.5" />
+              Selecione para o Time {selectingFor}
+            </p>
+            <PlayerAutocomplete
+              onSelect={(player) => addPlayer(player)}
+              excludeIds={selectedIds}
+              placeholder={`Buscar jogador para o Time ${selectingFor}...`}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("template")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canGoToScore}
+              onClick={() => setStep("score")}
+            >
+              Próximo: Placar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Selecionar Jogadores — INDIVIDUAL */}
+      {step === "players" && mode === "individual" && (
+        <div className="space-y-4">
+          {/* Jogadores adicionados */}
+          <Card className="min-h-25">
+            <p className="text-xs text-muted mb-2 font-medium">
+              Jogadores ({individualPlayers.length})
+            </p>
+            {individualPlayers.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum jogador adicionado</p>
+            ) : (
+              <div className="space-y-2">
+                {individualPlayers.map((p, idx) => (
+                  <div key={p.user.id} className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 w-5 text-center font-mono">
+                      {idx + 1}
+                    </span>
+                    <Avatar name={p.user.username} size="sm" />
+                    <span className="text-xs text-foreground flex-1 truncate">
+                      {p.user.username}
+                    </span>
+                    <button
+                      onClick={() => removeIndividualPlayer(p.user.id)}
+                      className="text-neutral-500 hover:text-loss cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Autocomplete para adicionar jogadores */}
+          <div>
+            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
+              <UserPlus className="h-3.5 w-3.5" />
+              Adicionar jogador
+            </p>
+            <PlayerAutocomplete
+              onSelect={(player) => addIndividualPlayer(player)}
+              excludeIds={selectedIds}
+              placeholder="Buscar jogador..."
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("template")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canGoToScore}
+              onClick={() => setStep("score")}
+            >
+              Próximo: Placar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Placar — TIMES */}
+      {step === "score" && mode === "teams" && (
+        <div className="space-y-6">
+          {/* Template info banner */}
+          {useTemplate && selectedTemplate && (
+            <div className="rounded-lg border border-primary-600/30 bg-primary-600/5 px-3 py-2 flex items-center justify-between">
+              <p className="text-xs text-primary-400 font-medium">
+                Template: {selectedTemplate.name}
+              </p>
+            </div>
+          )}
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center gap-3 flex-1">
+                <div className="flex -space-x-2">
+                  {teamA.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <span className="text-xs text-muted font-medium">Time A</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setScoreA(Math.max(0, scoreA - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreA}
+                    onChange={(e) => setScoreA(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => setScoreA(scoreA + 1)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <span className="text-2xl font-bold text-neutral-600">×</span>
+
+              <div className="flex flex-col items-center gap-3 flex-1">
+                <div className="flex -space-x-2">
+                  {teamB.map((p) => (
+                    <Avatar key={p.id} name={p.username} size="sm" />
+                  ))}
+                </div>
+                <span className="text-xs text-muted font-medium">Time B</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setScoreB(Math.max(0, scoreB - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreB}
+                    onChange={(e) => setScoreB(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="text-4xl font-bold text-foreground w-16 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => setScoreB(scoreB + 1)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Template fields per player (teams) */}
+          {useTemplate && selectedTemplate && (
+            <div className="space-y-3">
+              {[...teamA, ...teamB].map((p) => (
+                <Card key={p.id}>
+                  <p className="text-sm font-semibold text-foreground mb-2">
+                    {p.username}
+                  </p>
+                  <div className="space-y-2">
+                    {selectedTemplate.fields.map((f) => (
+                      <div key={f.id}>
+                        <label className="text-xs text-muted mb-1 block">
+                          {f.name}
+                          {!f.is_required && " (opcional)"}
+                        </label>
+                        {f.field_type === "numeric" && (
+                          <input
+                            type="number"
+                            min={f.min_value ?? undefined}
+                            max={f.max_value ?? undefined}
+                            className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                            placeholder={
+                              f.min_value != null && f.max_value != null
+                                ? `${f.min_value} — ${f.max_value}`
+                                : "0"
+                            }
+                            value={templateScores[p.id]?.[f.id]?.numeric_value ?? ""}
+                            onChange={(e) =>
+                              updateTemplateScore(p.id, f.id, {
+                                numeric_value: e.target.value ? Number(e.target.value) : null,
+                              })
+                            }
+                          />
+                        )}
+                        {f.field_type === "ranking" && (
+                          <input
+                            type="number"
+                            min={1}
+                            className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                            placeholder="Posição (1, 2, 3...)"
+                            value={templateScores[p.id]?.[f.id]?.ranking_value ?? ""}
+                            onChange={(e) =>
+                              updateTemplateScore(p.id, f.id, {
+                                ranking_value: e.target.value ? Number(e.target.value) : null,
+                              })
+                            }
+                          />
+                        )}
+                        {f.field_type === "boolean" && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="accent-primary-600 h-4 w-4"
+                              checked={templateScores[p.id]?.[f.id]?.boolean_value ?? false}
+                              onChange={(e) =>
+                                updateTemplateScore(p.id, f.id, {
+                                  boolean_value: e.target.checked,
+                                })
+                              }
+                            />
+                            <span className="text-sm text-foreground">Sim</span>
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => setStep("confirm")}
+              disabled={scoreA === scoreB}
+            >
+              Confirmar
+            </Button>
+          </div>
+
+          {scoreA === scoreB && scoreA > 0 && (
+            <p className="text-center text-xs text-loss">
+              Empate não é permitido. Defina um vencedor!
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* STEP: Placar — INDIVIDUAL */}
+      {step === "score" && mode === "individual" && (
+        <div className="space-y-4">
+          {/* Template info banner */}
+          {useTemplate && selectedTemplate && (
+            <div className="rounded-lg border border-primary-600/30 bg-primary-600/5 px-3 py-2 flex items-center justify-between">
+              <p className="text-xs text-primary-400 font-medium">
+                Template: {selectedTemplate.name}
+              </p>
+            </div>
+          )}
+
           {/* Template fields per player */}
           {useTemplate && selectedTemplate && (
             <div className="space-y-3">
@@ -1085,8 +1287,8 @@ export default function NewMatchPage() {
             </div>
           )}
 
-          {/* Default scoring */}
-          {!useTemplate && (
+          {/* Default scoring — Numérica */}
+          {!useTemplate && scoringType === "numeric" && (
             <>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-muted font-medium">Defina a pontuação de cada jogador</p>
@@ -1169,8 +1371,87 @@ export default function NewMatchPage() {
             </>
           )}
 
+          {/* Default scoring — Ranking */}
+          {!useTemplate && scoringType === "ranking" && (
+            <>
+              <p className="text-xs text-muted font-medium mb-2">Arraste para definir a classificação</p>
+              <div className="space-y-2">
+                {individualPlayers.map((p, idx) => (
+                  <Card key={p.user.id} className="p-3!">
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button
+                          onClick={() => movePosition(p.user.id, "up")}
+                          disabled={idx === 0}
+                          className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span
+                          className={`text-sm font-bold w-6 text-center ${
+                            p.position === 1
+                              ? "text-yellow-400"
+                              : p.position === 2
+                              ? "text-neutral-300"
+                              : p.position === 3
+                              ? "text-amber-600"
+                              : "text-neutral-500"
+                          }`}
+                        >
+                          {p.position}º
+                        </span>
+                        <button
+                          onClick={() => movePosition(p.user.id, "down")}
+                          disabled={idx === individualPlayers.length - 1}
+                          className="text-neutral-500 hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <Avatar name={p.user.username} size="sm" />
+                      <span className="text-sm text-foreground font-medium flex-1 truncate">
+                        {p.user.username}
+                      </span>
+                      {p.position === 1 && <Trophy className="h-4 w-4 text-yellow-400" />}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Default scoring — Vencedor único */}
+          {!useTemplate && scoringType === "winner_takes_all" && (
+            <>
+              <p className="text-xs text-muted font-medium mb-2">Toque no vencedor da partida</p>
+              <div className="space-y-2">
+                {individualPlayers.map((p) => (
+                  <button
+                    key={p.user.id}
+                    onClick={() => setWinner(p.user.id)}
+                    className={`w-full rounded-xl border p-3 flex items-center gap-3 transition-colors cursor-pointer ${
+                      p.position === 1
+                        ? "border-yellow-500/50 bg-yellow-500/10"
+                        : "border-border hover:bg-card-hover"
+                    }`}
+                  >
+                    <Avatar name={p.user.username} size="sm" />
+                    <span className="text-sm text-foreground font-medium flex-1 truncate text-left">
+                      {p.user.username}
+                    </span>
+                    {p.position === 1 ? (
+                      <Crown className="h-5 w-5 text-yellow-400" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border-2 border-neutral-600" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Tie detection */}
-          {hasTies && !useTemplate && (
+          {hasTies && !useTemplate && scoringType === "numeric" && (
             <Card className="border-amber-500/30 bg-amber-500/5">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-amber-400 text-lg">⚖️</span>
@@ -1334,7 +1615,13 @@ export default function NewMatchPage() {
                   <span className="text-sm text-foreground font-medium flex-1">
                     {p.user.username}
                   </span>
-                  <span className="text-sm font-bold text-foreground">{p.score} pts</span>
+                  {scoringType === "winner_takes_all" ? (
+                    p.position === 1 && <span className="text-xs font-bold text-yellow-400">Vencedor</span>
+                  ) : scoringType === "ranking" ? (
+                    null
+                  ) : (
+                    <span className="text-sm font-bold text-foreground">{p.score} pts</span>
+                  )}
                   {p.position === 1 && (
                     <Trophy className="h-4 w-4 text-yellow-400" />
                   )}
@@ -1357,6 +1644,54 @@ export default function NewMatchPage() {
             >
               <Check className="h-5 w-5" />
               {submitting ? "Salvando..." : "Salvar Partida"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Achievement unlock overlay */}
+      {unlockedAchievements.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="text-center">
+              <Trophy className="h-10 w-10 text-amber-400 mx-auto mb-2" />
+              <h2 className="text-lg font-bold text-foreground">
+                {unlockedAchievements.length === 1
+                  ? "Conquista Desbloqueada!"
+                  : `${unlockedAchievements.length} Conquistas Desbloqueadas!`}
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {unlockedAchievements.map((a) => (
+                <Card key={a.id} className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 shrink-0">
+                    {a.icon_url ? (
+                      <Image src={a.icon_url} alt={a.name} width={24} height={24} className="h-6 w-6 rounded" />
+                    ) : (
+                      <Trophy className="h-5 w-5 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {a.name}
+                    </p>
+                    {a.description && (
+                      <p className="text-xs text-muted truncate">{a.description}</p>
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-amber-400 shrink-0">
+                    +{a.points} pts
+                  </span>
+                </Card>
+              ))}
+            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={() => router.push("/matches")}
+            >
+              Continuar
             </Button>
           </div>
         </div>

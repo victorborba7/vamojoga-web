@@ -92,6 +92,8 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveGame(gameId: string) {
     if (!collection) return;
+    const jogo = collection.games.find((g) => g.game_id === gameId);
+    if (!confirm(`Remover "${jogo?.name ?? "jogo"}" do collection?`)) return;
     await removeGameFromCollection(collection.id, gameId);
     setCollection((a) => a ? { ...a, games: a.games.filter((g) => g.game_id !== gameId), game_count: a.game_count - 1 } : a);
   }
@@ -110,6 +112,8 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveMember(userId: string) {
     if (!collection) return;
+    const membro = collection.members.find((m) => m.user_id === userId);
+    if (!confirm(`Remover "${membro?.username ?? "membro"}" do collection?`)) return;
     await removeMember(collection.id, userId);
     setCollection((a) => a ? { ...a, members: a.members.filter((m) => m.user_id !== userId), member_count: a.member_count - 1 } : a);
   }

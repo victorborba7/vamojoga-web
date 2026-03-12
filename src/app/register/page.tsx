@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
-import { Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function RegisterPage() {
@@ -25,6 +25,21 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (username.trim().length < 3) {
+      setError("Nome de usuário precisa ter pelo menos 3 caracteres");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Informe um e-mail válido");
+      return;
+    }
+    if (password.length < 6) {
+      setError("A senha precisa ter pelo menos 6 caracteres");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -48,9 +63,14 @@ export default function RegisterPage() {
   return (
     <PageContainer>
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary-600/30">
-          <Zap className="h-8 w-8 text-white" />
-        </div>
+        <Image
+          src="/full_logo.png"
+          alt="VamoJoga"
+          width={180}
+          height={72}
+          className="mx-auto mb-6"
+          priority
+        />
         <h1 className="text-2xl font-bold text-foreground mb-1">Criar Conta</h1>
         <p className="text-sm text-muted mb-6">Junte-se ao VamoJoga</p>
 

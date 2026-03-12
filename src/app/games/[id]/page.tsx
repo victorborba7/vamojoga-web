@@ -37,6 +37,7 @@ import {
   ApiError,
 } from "@/lib/api";
 import type { FriendResponse, GameResponse, MatchResponse, UserStats } from "@/types";
+import { PriceChart } from "@/components/game/price-chart";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -439,6 +440,9 @@ export default function GameDetailPage({ params }: Props) {
           </div>
         </div>
       )}
+
+      {/* Price history */}
+      <PriceChart gameId={id} />
 
       {/* Match history */}
       <div>

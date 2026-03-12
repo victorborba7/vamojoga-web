@@ -40,28 +40,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchUser = useCallback(async () => {
+  useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       setLoading(false);
       return;
     }
-    try {
-      const me = await getMe();
-      setUser(me);
-      await refreshPendingCount();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        localStorage.removeItem("token");
+    (async () => {
+      try {
+        const me = await getMe();
+        setUser(me);
+        const pending = await getPendingReceived();
+        setPendingFriendsCount(pending.length);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem("token");
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshPendingCount]);
-
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Poll for pending requests every 60s
   useEffect(() => {
