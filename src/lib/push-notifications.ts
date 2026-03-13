@@ -1,11 +1,12 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const API_URL = `${API_BASE}/api/v1`;
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  const arr = new Uint8Array([...rawData].map((char) => char.charCodeAt(0)));
+  return arr.buffer as ArrayBuffer;
 }
 
 async function getVapidPublicKey(): Promise<string> {
