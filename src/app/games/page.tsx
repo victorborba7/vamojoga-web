@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import {
   BookOpen,
+  ClipboardList,
   Heart,
   Search,
   ChevronRight,
@@ -177,6 +178,20 @@ export default function GamesHubPage() {
               </Card>
             </Link>
           </div>
+
+          {/* Scoring Templates */}
+          <Link href="/scoring-templates">
+            <Card className="flex items-center gap-3 mb-3 hover:bg-card-hover transition-colors cursor-pointer">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 shrink-0">
+                <ClipboardList className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">Templates de Pontuação</p>
+                <p className="text-xs text-muted">Crie e use templates para registrar partidas</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted shrink-0" />
+            </Card>
+          </Link>
 
           {/* Collections */}
           <Link href="/collection">

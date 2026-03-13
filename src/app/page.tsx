@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getUserMatches, getUserStats, getGlobalRanking, resendVerification } from "@/lib/api";
 import type { MatchResponse, UserStats, RankingEntry } from "@/types";
+import { PushPermissionBanner } from "@/components/notifications/push-permission-banner";
 
 function EmailVerificationBanner() {
   const [sending, setSending] = useState(false);
@@ -122,6 +123,9 @@ export default function Home() {
       {user && !user.email_verified && (
         <EmailVerificationBanner />
       )}
+
+      {/* Push notification permission banner */}
+      <PushPermissionBanner />
 
       {/* Greeting */}
       <div className="mb-6">

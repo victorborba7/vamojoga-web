@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import confetti from "canvas-confetti";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -105,6 +106,17 @@ export default function NewMatchPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [unlockedAchievements, setUnlockedAchievements] = useState<NewlyUnlockedAchievement[]>([]);
+
+  // Fire confetti when achievements unlock
+  useEffect(() => {
+    if (unlockedAchievements.length === 0) return;
+    confetti({
+      particleCount: 120,
+      spread: 80,
+      origin: { y: 0.5 },
+      colors: ["#f59e0b", "#fbbf24", "#7c3aed", "#a78bfa", "#ffffff"],
+    });
+  }, [unlockedAchievements]);
 
   // DnD sensors — PointerSensor for desktop, TouchSensor for mobile
   const sensors = useSensors(
@@ -547,6 +559,11 @@ export default function NewMatchPage() {
             }}
             onClear={() => setSelectedGame(null)}
           />
+          {selectedGame && (
+            <Button className="w-full" onClick={() => setStep("template")}>
+              Próximo
+            </Button>
+          )}
         </div>
       )}
 
