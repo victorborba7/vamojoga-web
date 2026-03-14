@@ -7,6 +7,8 @@ import type {
   GameCreate,
   MatchResponse,
   MatchCreate,
+  MatchPlayerResponse,
+  PlayerScoreSubmit,
   RankingEntry,
   UserStats,
   FriendshipResponse,
@@ -192,6 +194,33 @@ export async function getUserMatches(
 
 export async function getMatch(matchId: string): Promise<MatchResponse> {
   return request<MatchResponse>(`/matches/${matchId}`);
+}
+
+export async function submitOwnScores(
+  matchId: string,
+  data: PlayerScoreSubmit
+): Promise<MatchPlayerResponse> {
+  return request<MatchPlayerResponse>(`/matches/${matchId}/submit-scores`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function submitPlayerScores(
+  matchId: string,
+  userId: string,
+  data: PlayerScoreSubmit
+): Promise<MatchPlayerResponse> {
+  return request<MatchPlayerResponse>(`/matches/${matchId}/submit-scores/${userId}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function finalizeMatch(matchId: string): Promise<MatchResponse> {
+  return request<MatchResponse>(`/matches/${matchId}/finalize`, {
+    method: "POST",
+  });
 }
 
 // ---- Ranking ----

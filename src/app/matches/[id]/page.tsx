@@ -8,10 +8,10 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trophy, ArrowLeft, Calendar, Clock, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Trophy, ArrowLeft, Calendar, Clock, Users, ChevronDown, ChevronUp, Share2, Check, ClipboardEdit, Loader2 } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
-import { getMatch } from "@/lib/api";
-import type { MatchResponse, MatchPlayerResponse } from "@/types";
+import { getMatch, finalizeMatch, submitPlayerScores, getScoringTemplate } from "@/lib/api";
+import type { MatchResponse, MatchPlayerResponse, ScoringTemplateResponse, TemplateScoreEntry } from "@/types";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,18 +21,77 @@ export default function MatchDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
+  const [template, setTemplate] = useState<ScoringTemplateResponse | null>(null);
+  const [scoringForPlayer, setScoringForPlayer] = useState<string | null>(null);
+  const [organizerScores, setOrganizerScores] = useState<Record<string, TemplateScoreEntry>>({});
+  const [submittingFor, setSubmittingFor] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
     if (!id) return;
 
-    getMatch(id)
-      .then(setMatch)
-      .catch(() => setError("Partida não encontrada"))
-      .finally(() => setLoading(false));
+    (async () => {
+      try {
+        const m = await getMatch(id);
+        setMatch(m);
+        if (m.status === "pending_scores" && m.scoring_template_id) {
+          const t = await getScoringTemplate(m.scoring_template_id);
+          setTemplate(t);
+        }
+      } catch {
+        setError("Partida não encontrada");
+      } finally {
+        setLoading(false);
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, authLoading]);
+
+  async function handleFinalize() {
+    if (!id) return;
+    setFinalizing(true);
+    setError("");
+    try {
+      const result = await finalizeMatch(id);
+      setMatch(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao finalizar partida");
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
+  function updateOrganizerScore(fieldId: string, entry: Partial<TemplateScoreEntry>) {
+    setOrganizerScores((prev) => ({
+      ...prev,
+      [fieldId]: {
+        ...(prev[fieldId] || {}),
+        ...entry,
+        template_field_id: fieldId,
+      },
+    }));
+  }
+
+  async function handleSubmitForPlayer() {
+    if (!id || !scoringForPlayer) return;
+    setSubmittingFor(true);
+    setError("");
+    try {
+      await submitPlayerScores(id, scoringForPlayer, {
+        template_scores: Object.values(organizerScores),
+      });
+      const m = await getMatch(id);
+      setMatch(m);
+      setScoringForPlayer(null);
+      setOrganizerScores({});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar pontuação");
+    } finally {
+      setSubmittingFor(false);
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -121,7 +180,214 @@ export default function MatchDetailPage() {
         </div>
       </Card>
 
-      {isIndividual || isDraw ? (
+      {/* PENDING SCORES VIEW */}
+      {match.status === "pending_scores" ? (
+        <div className="space-y-4">
+          <Card className="border-primary-600/30 bg-primary-600/5">
+            <div className="flex items-center gap-3 mb-3">
+              <Share2 className="h-5 w-5 text-primary-400 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Pontuação Colaborativa
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">
+                  {match.scoring_template_name && `Template: ${match.scoring_template_name}`}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {match.players.map((player) => {
+                const isMe = player.user_id === user?.id;
+                const isOrganizer = match.created_by === user?.id;
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`flex items-center gap-3 rounded-lg p-2.5 ${
+                      player.scores_submitted
+                        ? "bg-emerald-500/5 border border-emerald-500/20"
+                        : "bg-neutral-800/50 border border-border"
+                    }`}
+                  >
+                    <Avatar name={player.username || "?"} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {player.username || "Jogador"}
+                        {isMe && <span className="text-xs text-muted ml-1">(você)</span>}
+                      </p>
+                    </div>
+                    {player.scores_submitted ? (
+                      <Badge variant="win">
+                        <Check className="h-3 w-3 mr-1" />
+                        Enviado
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted">Pendente</span>
+                        {isMe && (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => router.push(`/matches/${id}/score`)}
+                          >
+                            Registrar
+                          </Button>
+                        )}
+                        {isOrganizer && !isMe && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setScoringForPlayer(player.user_id);
+                              setOrganizerScores({});
+                            }}
+                          >
+                            <ClipboardEdit className="h-3 w-3" />
+                            Preencher
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress */}
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-xs text-muted mb-1">
+                <span>Progresso</span>
+                <span>
+                  {match.players.filter((p) => p.scores_submitted).length}/{match.players.length}
+                </span>
+              </div>
+              <div className="h-1.5 bg-neutral-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary-500 rounded-full transition-all"
+                  style={{
+                    width: `${(match.players.filter((p) => p.scores_submitted).length / match.players.length) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Organizer fill-in form */}
+          {scoringForPlayer && template && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-foreground">
+                  Preencher para: {match.players.find((p) => p.user_id === scoringForPlayer)?.username}
+                </p>
+                <button
+                  onClick={() => setScoringForPlayer(null)}
+                  className="text-neutral-400 hover:text-foreground p-1 cursor-pointer"
+                >
+                  <ArrowLeft size={14} />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {template.fields.map((f) => (
+                  <div key={f.id}>
+                    <label className="text-xs text-muted mb-1 block">
+                      {f.name}
+                      {!f.is_required && " (opcional)"}
+                    </label>
+                    {f.field_type === "numeric" && (
+                      <input
+                        type="number"
+                        min={f.min_value ?? undefined}
+                        max={f.max_value ?? undefined}
+                        className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                        placeholder={
+                          f.min_value != null && f.max_value != null
+                            ? `${f.min_value} — ${f.max_value}`
+                            : "0"
+                        }
+                        value={organizerScores[f.id]?.numeric_value ?? ""}
+                        onChange={(e) =>
+                          updateOrganizerScore(f.id, {
+                            numeric_value: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                      />
+                    )}
+                    {f.field_type === "ranking" && (
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-full rounded-lg border border-border bg-neutral-800 px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary-600 focus:outline-none"
+                        placeholder="Posição (1, 2, 3...)"
+                        value={organizerScores[f.id]?.ranking_value ?? ""}
+                        onChange={(e) =>
+                          updateOrganizerScore(f.id, {
+                            ranking_value: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                      />
+                    )}
+                    {f.field_type === "boolean" && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="accent-primary-600 h-4 w-4"
+                          checked={organizerScores[f.id]?.boolean_value ?? false}
+                          onChange={(e) =>
+                            updateOrganizerScore(f.id, {
+                              boolean_value: e.target.checked,
+                            })
+                          }
+                        />
+                        <span className="text-sm text-foreground">Sim</span>
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full mt-4"
+                onClick={handleSubmitForPlayer}
+                disabled={submittingFor}
+              >
+                <Check className="h-5 w-5" />
+                {submittingFor ? "Enviando..." : "Enviar Pontuação"}
+              </Button>
+            </Card>
+          )}
+
+          {/* Finalize button (organizer only) */}
+          {match.created_by === user?.id && (
+            <Button
+              variant="accent"
+              size="lg"
+              className="w-full"
+              onClick={handleFinalize}
+              disabled={finalizing}
+            >
+              {finalizing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Finalizando...
+                </>
+              ) : (
+                <>
+                  <Check className="h-5 w-5" />
+                  Finalizar Partida
+                </>
+              )}
+            </Button>
+          )}
+
+          {error && (
+            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+        </div>
+      ) : isIndividual || isDraw ? (
         /* --- INDIVIDUAL VIEW --- */
         <div className="space-y-4">
           <div className="flex items-center justify-between">

@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake } from "lucide-react";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, ApiError } from "@/lib/api";
 import type {
@@ -98,6 +98,7 @@ export default function NewMatchPage() {
   const [availableTemplates, setAvailableTemplates] = useState<ScoringTemplateListResponse[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<ScoringTemplateResponse | null>(null);
   const [useTemplate, setUseTemplate] = useState(false);
+  const [collaborativeScoring, setCollaborativeScoring] = useState(false);
   // templateScores: { [userId]: { [fieldId]: TemplateScoreEntry } }
   const [templateScores, setTemplateScores] = useState<
     Record<string, Record<string, TemplateScoreEntry>>
@@ -471,9 +472,12 @@ export default function NewMatchPage() {
         game_id: selectedGame.id,
         scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
         match_mode: mode === "cooperative" ? "cooperative" : mode === "teams" ? "team" : (useTemplate && selectedTemplate ? selectedTemplate.match_mode : scoringType),
+        collaborative_scoring: collaborativeScoring,
         players,
       });
-      if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
+      if (collaborativeScoring) {
+        router.push(`/matches/${result.id}`);
+      } else if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
         setUnlockedAchievements(result.unlocked_achievements);
       } else {
         router.push("/matches");
@@ -515,7 +519,9 @@ export default function NewMatchPage() {
 
   const canConfirmCooperative = individualPlayers.length >= 2 && cooperativeWon !== null;
 
-  const steps: Step[] = ["game", "template", "players", "score", "confirm"];
+  const steps: Step[] = collaborativeScoring
+    ? ["game", "template", "players", "confirm"]
+    : ["game", "template", "players", "score", "confirm"];
 
   const stepIndex = steps.indexOf(step);
 
@@ -907,6 +913,35 @@ export default function NewMatchPage() {
             </Card>
           )}
 
+          {/* Collaborative scoring toggle */}
+          {useTemplate && selectedTemplate && mode !== "cooperative" && (
+            <Card>
+              <button
+                onClick={() => setCollaborativeScoring(!collaborativeScoring)}
+                className="flex items-center gap-3 w-full text-left cursor-pointer"
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${
+                  collaborativeScoring ? "bg-primary-600/20" : "bg-neutral-800"
+                }`}>
+                  <Share2 className={`h-5 w-5 ${collaborativeScoring ? "text-primary-400" : "text-neutral-500"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Pontuação colaborativa</p>
+                  <p className="text-[10px] text-muted mt-0.5">
+                    Cada jogador registra sua própria pontuação pelo celular
+                  </p>
+                </div>
+                <div className={`w-10 h-6 rounded-full relative transition-colors ${
+                  collaborativeScoring ? "bg-primary-600" : "bg-neutral-700"
+                }`}>
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    collaborativeScoring ? "translate-x-4.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+            </Card>
+          )}
+
           {error && (
             <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
               {error}
@@ -1172,9 +1207,9 @@ export default function NewMatchPage() {
               variant="primary"
               size="lg"
               disabled={!canGoToScore}
-              onClick={() => setStep("score")}
+              onClick={() => setStep(collaborativeScoring ? "confirm" : "score")}
             >
-              Próximo: Placar
+              {collaborativeScoring ? "Próximo: Confirmar" : "Próximo: Placar"}
             </Button>
           </div>
         </div>
@@ -1745,7 +1780,7 @@ export default function NewMatchPage() {
       )}
 
       {/* STEP: Confirmação — INDIVIDUAL */}
-      {step === "confirm" && mode === "individual" && (
+      {step === "confirm" && mode === "individual" && !collaborativeScoring && (
         <div className="space-y-6">
           <Card>
             <p className="text-xs text-muted mb-1 font-medium text-center">
@@ -1808,6 +1843,65 @@ export default function NewMatchPage() {
             >
               <Check className="h-5 w-5" />
               {submitting ? "Salvando..." : "Salvar Partida"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Confirmação — COLABORATIVA */}
+      {step === "confirm" && collaborativeScoring && (
+        <div className="space-y-6">
+          <Card>
+            <p className="text-xs text-muted mb-1 font-medium text-center">
+              {selectedGame?.name}
+            </p>
+            <p className="text-xs text-muted mb-4 font-medium text-center">
+              Pontuação Colaborativa
+            </p>
+            <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-primary-600/5 border border-primary-600/20">
+              <Share2 className="h-5 w-5 text-primary-400 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Cada jogador registrará sua pontuação
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">
+                  Usando o template: {selectedTemplate?.name}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {individualPlayers.map((p, idx) => (
+                <div
+                  key={p.user.id}
+                  className="flex items-center gap-3 rounded-lg p-2.5"
+                >
+                  <span className="text-xs text-neutral-500 w-5 text-center font-mono">
+                    {idx + 1}
+                  </span>
+                  <Avatar name={p.user.username} size="sm" />
+                  <span className="text-sm text-foreground font-medium flex-1">
+                    {p.user.username}
+                  </span>
+                  <span className="text-xs text-muted">Aguardando</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {error && <p className="text-center text-xs text-loss">{error}</p>}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
+              Voltar
+            </Button>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={handleConfirm}
+              disabled={submitting}
+            >
+              <Share2 className="h-5 w-5" />
+              {submitting ? "Criando..." : "Criar e Enviar"}
             </Button>
           </div>
         </div>

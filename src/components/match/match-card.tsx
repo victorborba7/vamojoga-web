@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trophy, ChevronDown, ChevronUp, ExternalLink, Handshake } from "lucide-react";
+import { Trophy, ChevronDown, ChevronUp, ExternalLink, Handshake, Share2 } from "lucide-react";
 import type { MatchResponse } from "@/types";
 import Link from "next/link";
 
@@ -21,6 +21,7 @@ export function MatchCard({ match }: MatchCardProps) {
     year: "numeric",
   });
 
+  const isPending = match.status === "pending_scores";
   const winners = match.players.filter((p) => p.is_winner);
   const losers = match.players.filter((p) => !p.is_winner);
 
@@ -58,11 +59,15 @@ export function MatchCard({ match }: MatchCardProps) {
       >
         {/* Position icon / trophy */}
         <div className={`flex h-9 w-9 items-center justify-center rounded-full shrink-0 ${
-          isCooperative
+          isPending
+            ? "bg-primary-600/10"
+            : isCooperative
             ? cooperativeWon ? "bg-emerald-500/10" : "bg-red-500/10"
             : "bg-yellow-500/10"
         }`}>
-          {isCooperative
+          {isPending
+            ? <Share2 className="h-4 w-4 text-primary-400" />
+            : isCooperative
             ? <Handshake className={`h-4 w-4 ${cooperativeWon ? "text-emerald-400" : "text-red-400"}`} />
             : <Trophy className="h-4 w-4 text-yellow-400" />}
         </div>
@@ -71,7 +76,9 @@ export function MatchCard({ match }: MatchCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground truncate">
-              {isCooperative
+              {isPending
+                ? "Aguardando pontuações"
+                : isCooperative
                 ? cooperativeWon
                   ? "Vitória Coletiva"
                   : "Derrota Coletiva"
@@ -81,7 +88,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 ? `${sortedPlayers[0]?.username || "?"} venceu`
                 : `${winnerNames}`}
             </span>
-            {!positionOnly && !isCooperative && (
+            {!isPending && !positionOnly && !isCooperative && (
               <span className={`text-xs font-bold shrink-0 ${isDraw ? "text-amber-400" : "text-win"}`}>
                 {isDraw
                   ? `${sortedPlayers[0]?.score ?? 0} pts`
@@ -90,7 +97,12 @@ export function MatchCard({ match }: MatchCardProps) {
                   : `${winnerScore} × ${loserScore}`}
               </span>
             )}
-            {positionOnly && !isCooperative && (
+            {isPending && (
+              <span className="text-xs font-medium shrink-0 text-primary-400">
+                {match.players.filter((p) => p.scores_submitted).length}/{match.players.length} enviados
+              </span>
+            )}
+            {!isPending && positionOnly && !isCooperative && (
               <span className="text-xs font-medium shrink-0 text-muted">
                 {match.players.length} jogadores
               </span>
@@ -100,6 +112,11 @@ export function MatchCard({ match }: MatchCardProps) {
             <span className="text-xs text-muted">{date}</span>
             {match.game_name && (
               <Badge variant="default">{match.game_name}</Badge>
+            )}
+            {isPending && (
+              <Badge variant="default">
+                {match.players.filter((p) => p.scores_submitted).length}/{match.players.length}
+              </Badge>
             )}
           </div>
         </div>
@@ -117,7 +134,24 @@ export function MatchCard({ match }: MatchCardProps) {
       {/* Expanded content */}
       {expanded && (
         <div className="mt-4 pt-3 border-t border-border space-y-3">
-          {isCooperative ? (
+          {isPending ? (
+            /* Pending scores: show who submitted */
+            <div className="space-y-2">
+              {match.players.map((player) => (
+                <div key={player.id} className="flex items-center gap-2">
+                  <Avatar name={player.username || "?"} size="sm" />
+                  <span className="text-xs text-foreground font-medium flex-1 truncate">
+                    {player.username || "Jogador"}
+                  </span>
+                  {player.scores_submitted ? (
+                    <span className="text-xs font-semibold text-emerald-400">Enviado</span>
+                  ) : (
+                    <span className="text-xs text-muted">Pendente</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : isCooperative ? (
             /* Cooperative: list all players with shared outcome */
             <div className="space-y-2">
               <div className={`text-center rounded-lg py-2 mb-3 ${

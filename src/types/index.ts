@@ -83,6 +83,7 @@ export interface MatchCreate {
   notes?: string;
   scoring_template_id?: string;
   match_mode?: string;
+  collaborative_scoring?: boolean;
   players: MatchPlayerCreate[];
 }
 
@@ -102,6 +103,8 @@ export interface MatchPlayerResponse {
   position: number;
   score: number;
   is_winner: boolean;
+  scores_submitted: boolean;
+  scores_submitted_at: string | null;
   template_scores: MatchTemplateScoreResponse[];
 }
 
@@ -114,11 +117,16 @@ export interface MatchResponse {
   played_at: string;
   notes: string | null;
   match_mode?: string;
+  status: string;
   scoring_template_id: string | null;
   scoring_template_name: string | null;
   players: MatchPlayerResponse[];
   unlocked_achievements: NewlyUnlockedAchievement[];
   created_at: string;
+}
+
+export interface PlayerScoreSubmit {
+  template_scores: TemplateScoreEntry[];
 }
 
 // ---- Ranking ----
