@@ -79,11 +79,10 @@ export default function MatchDetailPage() {
     setSubmittingFor(true);
     setError("");
     try {
-      await submitPlayerScores(id, scoringForPlayer, {
+      const result = await submitPlayerScores(id, scoringForPlayer, {
         template_scores: Object.values(organizerScores),
       });
-      const m = await getMatch(id);
-      setMatch(m);
+      setMatch(result);
       setScoringForPlayer(null);
       setOrganizerScores({});
     } catch (err) {
@@ -272,6 +271,131 @@ export default function MatchDetailPage() {
               </div>
             </div>
           </Card>
+
+          {/* Live ranking preview */}
+          {match.players.some((p) => p.scores_submitted && p.template_scores?.length > 0) && template && (
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-muted">Ranking Parcial</h2>
+                <span className="text-[10px] text-muted">
+                  {match.players.filter((p) => p.scores_submitted).length}/{match.players.length} jogadores
+                </span>
+              </div>
+              <div className="space-y-2">
+                {(() => {
+                  const tiebreakerIds = new Set(
+                    template.fields.filter((f) => f.is_tiebreaker).map((f) => f.id)
+                  );
+                  const withTotals = match.players
+                    .filter((p) => p.scores_submitted && p.template_scores?.length > 0)
+                    .map((p) => {
+                      let total = 0;
+                      for (const ts of p.template_scores) {
+                        if (tiebreakerIds.has(ts.template_field_id)) continue;
+                        if (ts.field_type === "numeric") total += ts.numeric_value ?? 0;
+                        else if (ts.field_type === "boolean") total += ts.boolean_value ? 1 : 0;
+                      }
+                      return { ...p, calculatedTotal: total };
+                    })
+                    .sort((a, b) => b.calculatedTotal - a.calculatedTotal);
+
+                  let rank = 1;
+                  return withTotals.map((p, i) => {
+                    if (i > 0 && p.calculatedTotal < withTotals[i - 1].calculatedTotal) {
+                      rank = i + 1;
+                    }
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex items-center gap-3 rounded-lg p-2.5 ${
+                          rank === 1 ? "bg-yellow-500/10" : ""
+                        }`}
+                      >
+                        <span
+                          className={`text-sm font-bold w-6 text-center ${
+                            rank === 1
+                              ? "text-yellow-400"
+                              : rank === 2
+                              ? "text-neutral-300"
+                              : rank === 3
+                              ? "text-amber-600"
+                              : "text-neutral-500"
+                          }`}
+                        >
+                          {rank}º
+                        </span>
+                        <Avatar name={p.username || "?"} size="sm" />
+                        <span className="text-sm text-foreground font-medium flex-1 truncate">
+                          {p.username || "Jogador"}
+                        </span>
+                        <span className="text-sm font-bold text-foreground">
+                          {p.calculatedTotal} pts
+                        </span>
+                        {rank === 1 && (
+                          <Trophy className="h-4 w-4 text-yellow-400" />
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+                {match.players.some((p) => !p.scores_submitted) && (
+                  <div className="flex items-center gap-3 rounded-lg p-2.5 opacity-50">
+                    <span className="text-xs text-neutral-500 w-6 text-center">—</span>
+                    <span className="text-xs text-neutral-500">
+                      {match.players.filter((p) => !p.scores_submitted).length} jogador(es) pendente(s)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Expandable score breakdown */}
+              {match.players
+                .filter((p) => p.scores_submitted && p.template_scores?.length > 0)
+                .map((player) => (
+                  <div key={player.id} className="mt-3 pt-3 border-t border-border">
+                    <button
+                      className="flex items-center gap-2 w-full text-left cursor-pointer"
+                      onClick={() =>
+                        setExpandedPlayer(expandedPlayer === player.id ? null : player.id)
+                      }
+                    >
+                      <Avatar name={player.username || "?"} size="sm" />
+                      <span className="text-xs font-semibold text-foreground flex-1 truncate">
+                        {player.username || "Jogador"}
+                      </span>
+                      {expandedPlayer === player.id ? (
+                        <ChevronUp className="h-3.5 w-3.5 text-neutral-500" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
+                      )}
+                    </button>
+                    {expandedPlayer === player.id && (
+                      <div className="mt-2 space-y-1.5 pl-8">
+                        {player.template_scores.map((ts) => (
+                          <div
+                            key={ts.template_field_id}
+                            className="flex items-center justify-between"
+                          >
+                            <span className="text-xs text-muted">
+                              {ts.field_name || "Campo"}
+                            </span>
+                            <span className="text-xs font-semibold text-foreground">
+                              {ts.field_type === "boolean"
+                                ? ts.boolean_value
+                                  ? "Sim"
+                                  : "Não"
+                                : ts.field_type === "ranking"
+                                ? `${ts.ranking_value ?? 0}º`
+                                : ts.numeric_value ?? 0}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </Card>
+          )}
 
           {/* Organizer fill-in form */}
           {scoringForPlayer && template && (

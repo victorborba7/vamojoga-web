@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft } from "lucide-react";
+import { Check, ArrowLeft, Trophy } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
 import { getMatch, getScoringTemplate, submitOwnScores } from "@/lib/api";
 import type {
@@ -26,6 +26,7 @@ export default function SubmitScorePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [autoFinalized, setAutoFinalized] = useState(false);
 
   const [scores, setScores] = useState<Record<string, TemplateScoreEntry>>({});
 
@@ -66,9 +67,12 @@ export default function SubmitScorePage() {
     setError("");
 
     try {
-      await submitOwnScores(id, {
+      const result = await submitOwnScores(id, {
         template_scores: Object.values(scores),
       });
+      if (result.status === "completed") {
+        setAutoFinalized(true);
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao enviar pontuação");
@@ -149,18 +153,28 @@ export default function SubmitScorePage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Pontuação Registrada</h1>
+            <h1 className="text-lg font-bold text-foreground">
+              {autoFinalized ? "Partida Finalizada!" : "Pontuação Registrada"}
+            </h1>
             <p className="text-xs text-muted">{match.game_name}</p>
           </div>
         </div>
 
         <Card className="text-center py-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 mx-auto mb-4">
-            <Check className="h-8 w-8 text-emerald-400" />
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4 ${
+            autoFinalized ? "bg-yellow-500/20" : "bg-emerald-500/20"
+          }`}>
+            {autoFinalized
+              ? <Trophy className="h-8 w-8 text-yellow-400" />
+              : <Check className="h-8 w-8 text-emerald-400" />}
           </div>
-          <p className="text-lg font-bold text-foreground mb-1">Pontuação enviada!</p>
+          <p className="text-lg font-bold text-foreground mb-1">
+            {autoFinalized ? "Todos enviaram! Ranking disponível." : "Pontuação enviada!"}
+          </p>
           <p className="text-sm text-muted">
-            Aguardando os outros jogadores registrarem suas pontuações.
+            {autoFinalized
+              ? "Todos os jogadores registraram sua pontuação. A partida foi finalizada automaticamente."
+              : "Aguardando os outros jogadores registrarem suas pontuações."}
           </p>
         </Card>
 
@@ -170,7 +184,7 @@ export default function SubmitScorePage() {
           className="w-full mt-6"
           onClick={() => router.push(`/matches/${id}`)}
         >
-          Ver Partida
+          {autoFinalized ? "Ver Ranking Final" : "Ver Partida"}
         </Button>
       </PageContainer>
     );

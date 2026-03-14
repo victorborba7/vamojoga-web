@@ -7,7 +7,6 @@ import type {
   GameCreate,
   MatchResponse,
   MatchCreate,
-  MatchPlayerResponse,
   PlayerScoreSubmit,
   RankingEntry,
   UserStats,
@@ -199,8 +198,8 @@ export async function getMatch(matchId: string): Promise<MatchResponse> {
 export async function submitOwnScores(
   matchId: string,
   data: PlayerScoreSubmit
-): Promise<MatchPlayerResponse> {
-  return request<MatchPlayerResponse>(`/matches/${matchId}/submit-scores`, {
+): Promise<MatchResponse> {
+  return request<MatchResponse>(`/matches/${matchId}/submit-scores`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -210,8 +209,8 @@ export async function submitPlayerScores(
   matchId: string,
   userId: string,
   data: PlayerScoreSubmit
-): Promise<MatchPlayerResponse> {
-  return request<MatchPlayerResponse>(`/matches/${matchId}/submit-scores/${userId}`, {
+): Promise<MatchResponse> {
+  return request<MatchResponse>(`/matches/${matchId}/submit-scores/${userId}`, {
     method: "POST",
     body: JSON.stringify(data),
   });
