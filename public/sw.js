@@ -1,4 +1,4 @@
-const CACHE_NAME = "vamojoga-v1";
+const CACHE_NAME = "vamojoga-v2";
 const PRECACHE_URLS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -75,12 +75,18 @@ self.addEventListener("push", (event) => {
     // use defaults
   }
 
+  const tag = data.tag || "vamojoga-notification";
+
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: data.url },
+      tag,
+      renotify: true,
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
+      data: { url: data.url || "/" },
     })
   );
 });

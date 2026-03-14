@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, BellOff, X } from "lucide-react";
 import {
   isPushSupported,
   getNotificationPermission,
@@ -13,26 +13,38 @@ const DISMISSED_KEY = "push_permission_dismissed";
 export function PushPermissionBanner() {
   const [visible, setVisible] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isPushSupported()) return;
-    if (getNotificationPermission() !== "default") return;
+    const permission = getNotificationPermission();
+    if (permission === "denied") return; // already blocked — don't nag
+    if (permission !== "default") return;
     if (localStorage.getItem(DISMISSED_KEY)) return;
     setVisible(true);
   }, []);
 
   async function handleEnable() {
     setRequesting(true);
+    setError(null);
     try {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         const token = localStorage.getItem("token") ?? "";
-        await subscribeToPush(token);
+        const ok = await subscribeToPush(token);
+        if (!ok) {
+          setError("Não foi possível ativar. Tente novamente.");
+          setRequesting(false);
+          return;
+        }
+        setVisible(false);
+      } else {
+        // User denied — stop showing
+        setVisible(false);
       }
     } catch {
-      // silently ignore
+      setError("Erro ao ativar notificações. Tente novamente.");
     } finally {
-      setVisible(false);
       setRequesting(false);
     }
   }
@@ -52,10 +64,16 @@ export function PushPermissionBanner() {
         <p className="text-xs text-muted mt-0.5">
           Receba alertas de conquistas, amigos e partidas registradas.
         </p>
+        {error ? (
+          <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+            <BellOff className="h-3 w-3 shrink-0" />
+            {error}
+          </p>
+        ) : null}
         <button
           onClick={handleEnable}
           disabled={requesting}
-          className="text-xs text-primary-400 hover:text-primary-300 mt-2 font-medium cursor-pointer"
+          className="text-xs text-primary-400 hover:text-primary-300 mt-2 font-medium cursor-pointer disabled:opacity-50"
         >
           {requesting ? "Ativando..." : "Ativar notificações"}
         </button>

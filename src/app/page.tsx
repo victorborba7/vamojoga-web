@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getUserMatches, getUserStats, getGlobalRanking, resendVerification } from "@/lib/api";
 import type { MatchResponse, UserStats, RankingEntry } from "@/types";
 import { PushPermissionBanner } from "@/components/notifications/push-permission-banner";
+import { IosInstallBanner } from "@/components/notifications/ios-install-banner";
 
 function EmailVerificationBanner() {
   const [sending, setSending] = useState(false);
@@ -123,6 +124,9 @@ export default function Home() {
       {user && !user.email_verified && (
         <EmailVerificationBanner />
       )}
+
+      {/* iOS install guide */}
+      <IosInstallBanner />
 
       {/* Push notification permission banner */}
       <PushPermissionBanner />
