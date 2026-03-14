@@ -21,6 +21,7 @@ import {
   Pencil,
   X,
   Check,
+  Handshake,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -84,7 +85,7 @@ export default function ScoringTemplatesPage() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
-  const [editMatchMode, setEditMatchMode] = useState<"individual" | "team">("individual");
+  const [editMatchMode, setEditMatchMode] = useState<"individual" | "team" | "cooperative">("individual");
   const [editFields, setEditFields] = useState<FieldDraft[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -92,7 +93,7 @@ export default function ScoringTemplatesPage() {
   const [createGame, setCreateGame] = useState<GameResponse | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateDesc, setTemplateDesc] = useState("");
-  const [templateMatchMode, setTemplateMatchMode] = useState<"individual" | "team">("individual");
+  const [templateMatchMode, setTemplateMatchMode] = useState<"individual" | "team" | "cooperative">("individual");
   const [fields, setFields] = useState<FieldDraft[]>([newEmptyField()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -151,7 +152,7 @@ export default function ScoringTemplatesPage() {
     if (!selectedTemplate) return;
     setEditName(selectedTemplate.name);
     setEditDesc(selectedTemplate.description || "");
-    setEditMatchMode(selectedTemplate.match_mode === "team" ? "team" : "individual");
+    setEditMatchMode(selectedTemplate.match_mode === "team" ? "team" : selectedTemplate.match_mode === "cooperative" ? "cooperative" : "individual");
     setEditFields(
       selectedTemplate.fields.map((f) => ({
         key: ++fieldKeyCounter,
@@ -398,7 +399,7 @@ export default function ScoringTemplatesPage() {
                         <p className="text-sm text-muted mt-1">{t.description}</p>
                       )}
                       <p className="text-xs text-muted mt-1">
-                        {t.match_mode === "team" ? "Times" : "Individual"} · {t.field_count} campo{t.field_count !== 1 ? "s" : ""} · por{" "}
+                        {t.match_mode === "team" ? "Times" : t.match_mode === "cooperative" ? "Cooperativo" : "Individual"} · {t.field_count} campo{t.field_count !== 1 ? "s" : ""} · por{" "}
                         {t.created_by_username ?? "Desconhecido"}
                       </p>
                     </div>
@@ -412,7 +413,7 @@ export default function ScoringTemplatesPage() {
                               setSelectedTemplate(loaded);
                               setEditName(loaded.name);
                               setEditDesc(loaded.description || "");
-                              setEditMatchMode(loaded.match_mode === "team" ? "team" : "individual");
+                              setEditMatchMode(loaded.match_mode === "team" ? "team" : loaded.match_mode === "cooperative" ? "cooperative" : "individual");
                               setEditFields(
                                 loaded.fields.map((f) => ({
                                   key: ++fieldKeyCounter,
@@ -501,6 +502,17 @@ export default function ScoringTemplatesPage() {
                         >
                           <Users size={16} />
                           Times
+                        </button>
+                        <button
+                          className={`flex-1 flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                            editMatchMode === "cooperative"
+                              ? "border-emerald-600 bg-emerald-600/10 text-emerald-400"
+                              : "border-border text-muted hover:text-foreground"
+                          }`}
+                          onClick={() => setEditMatchMode("cooperative")}
+                        >
+                          <Handshake size={16} />
+                          Cooperativo
                         </button>
                       </div>
                     </div>
@@ -624,7 +636,7 @@ export default function ScoringTemplatesPage() {
                       </p>
                     )}
                     <p className="text-xs text-muted mb-4">
-                      Jogo: {selectedTemplate.game_name} · {selectedTemplate.match_mode === "team" ? "Times" : "Individual"} · Criado por{" "}
+                      Jogo: {selectedTemplate.game_name} · {selectedTemplate.match_mode === "team" ? "Times" : selectedTemplate.match_mode === "cooperative" ? "Cooperativo" : "Individual"} · Criado por{" "}
                       {selectedTemplate.created_by_username ?? "Desconhecido"}
                     </p>
                     <div className="space-y-2">
@@ -708,6 +720,17 @@ export default function ScoringTemplatesPage() {
               >
                 <Users size={16} />
                 Times
+              </button>
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  templateMatchMode === "cooperative"
+                    ? "border-emerald-600 bg-emerald-600/10 text-emerald-400"
+                    : "border-border text-muted hover:text-foreground"
+                }`}
+                onClick={() => setTemplateMatchMode("cooperative")}
+              >
+                <Handshake size={16} />
+                Cooperativo
               </button>
             </div>
           </div>

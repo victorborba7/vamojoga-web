@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown } from "lucide-react";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, ApiError } from "@/lib/api";
 import type {
@@ -43,7 +43,7 @@ import { GameAutocomplete } from "@/components/match/game-autocomplete";
 import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
 
 type Step = "game" | "template" | "players" | "score" | "confirm";
-type MatchMode = "teams" | "individual";
+type MatchMode = "teams" | "individual" | "cooperative";
 type ScoringType = "numeric" | "ranking" | "winner_takes_all";
 
 interface IndividualPlayer {
@@ -334,7 +334,7 @@ export default function NewMatchPage() {
       const t = await getScoringTemplate(templateId);
       setSelectedTemplate(t);
       setUseTemplate(true);
-      setMode(t.match_mode === "team" ? "teams" : "individual");
+      setMode(t.match_mode === "team" ? "teams" : t.match_mode === "cooperative" ? "cooperative" : "individual");
       setTemplateScores({});
     } catch {
       setSelectedTemplate(null);
@@ -422,7 +422,17 @@ export default function NewMatchPage() {
 
     let players: MatchPlayerCreate[];
 
-    if (mode === "teams") {
+    if (mode === "cooperative") {
+      players = individualPlayers.map((p) => ({
+        user_id: p.user.id,
+        position: cooperativeWon ? 1 : 2,
+        score: 0,
+        is_winner: cooperativeWon === true,
+        template_scores: useTemplate && selectedTemplate
+          ? Object.values(templateScores[p.user.id] || {})
+          : [],
+      }));
+    } else if (mode === "teams") {
       const isTeamAWinner = scoreA > scoreB;
       players = [
         ...teamA.map((p) => ({
@@ -460,7 +470,7 @@ export default function NewMatchPage() {
       const result = await createMatch({
         game_id: selectedGame.id,
         scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
-        match_mode: mode === "teams" ? "team" : (useTemplate && selectedTemplate ? selectedTemplate.match_mode : scoringType),
+        match_mode: mode === "cooperative" ? "cooperative" : mode === "teams" ? "team" : (useTemplate && selectedTemplate ? selectedTemplate.match_mode : scoringType),
         players,
       });
       if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
@@ -492,6 +502,9 @@ export default function NewMatchPage() {
   const tiebreakerField =
     selectedTemplate?.fields.find((f) => f.is_tiebreaker) ?? null;
 
+  // Cooperative outcome state
+  const [cooperativeWon, setCooperativeWon] = useState<boolean | null>(null);
+
   // --- Validations ---
   const canGoToScore =
     mode === "teams"
@@ -499,6 +512,8 @@ export default function NewMatchPage() {
       : individualPlayers.length >= 2;
 
   const canConfirmIndividual = individualPlayers.length >= 2;
+
+  const canConfirmCooperative = individualPlayers.length >= 2 && cooperativeWon !== null;
 
   const steps: Step[] = ["game", "template", "players", "score", "confirm"];
 
@@ -527,9 +542,13 @@ export default function NewMatchPage() {
             : step === "players"
             ? mode === "teams"
               ? "Monte os times"
+              : mode === "cooperative"
+              ? "Quem jogou juntos?"
               : "Adicione os jogadores"
             : step === "score"
-            ? "Qual foi o placar?"
+            ? mode === "cooperative"
+              ? "Venceram ou perderam?"
+              : "Qual foi o placar?"
             : "Confirme os dados"
         }
       />
@@ -589,7 +608,7 @@ export default function NewMatchPage() {
                   <option value="">Sem template</option>
                   {availableTemplates.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.field_count} campos) — {t.match_mode === "team" ? "Times" : "Individual"}
+                      {t.name} ({t.field_count} campos) — {t.match_mode === "team" ? "Times" : t.match_mode === "cooperative" ? "Cooperativo" : "Individual"}
                     </option>
                   ))}
                 </select>
@@ -770,7 +789,7 @@ export default function NewMatchPage() {
           {!useTemplate && !showCreateTemplate && (
             <Card>
               <p className="text-xs text-muted font-medium mb-2">Modo de jogo</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setMode("individual")}
                   className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-colors cursor-pointer ${
@@ -801,6 +820,22 @@ export default function NewMatchPage() {
                   <div className="text-center">
                     <p className="text-xs font-semibold text-foreground">Times</p>
                     <p className="text-[10px] text-muted mt-0.5">Time A vs Time B</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setMode("cooperative")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition-colors cursor-pointer ${
+                    mode === "cooperative"
+                      ? "border-emerald-600 bg-emerald-600/10"
+                      : "border-border hover:bg-card-hover hover:border-emerald-600"
+                  }`}
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${mode === "cooperative" ? "bg-emerald-600/20" : "bg-emerald-600/10"}`}>
+                    <Handshake className={`h-5 w-5 ${mode === "cooperative" ? "text-emerald-400" : "text-emerald-500"}`} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-foreground">Cooperativo</p>
+                    <p className="text-[10px] text-muted mt-0.5">Todos vs o jogo</p>
                   </div>
                 </button>
               </div>
@@ -859,7 +894,7 @@ export default function NewMatchPage() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">{selectedTemplate.name}</p>
                   <p className="text-xs text-muted mt-0.5">
-                    {selectedTemplate.fields.length} campos — {selectedTemplate.match_mode === "team" ? "Times" : "Individual"}
+                    {selectedTemplate.fields.length} campos — {selectedTemplate.match_mode === "team" ? "Times" : selectedTemplate.match_mode === "cooperative" ? "Cooperativo" : "Individual"}
                   </p>
                 </div>
                 <button
@@ -908,6 +943,7 @@ export default function NewMatchPage() {
                   } else {
                     setIndividualPlayers([]);
                   }
+                  setCooperativeWon(null);
                 }
                 setStep("players");
               }}
@@ -1022,6 +1058,66 @@ export default function NewMatchPage() {
         </div>
       )}
 
+      {/* STEP: Selecionar Jogadores — COOPERATIVO */}
+      {step === "players" && mode === "cooperative" && (
+        <div className="space-y-4">
+          <Card className="min-h-25">
+            <p className="text-xs text-muted mb-2 font-medium">
+              Jogadores ({individualPlayers.length})
+            </p>
+            {individualPlayers.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum jogador adicionado</p>
+            ) : (
+              <div className="space-y-2">
+                {individualPlayers.map((p, idx) => (
+                  <div key={p.user.id} className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 w-5 text-center font-mono">
+                      {idx + 1}
+                    </span>
+                    <Avatar name={p.user.username} size="sm" />
+                    <span className="text-xs text-foreground flex-1 truncate">
+                      {p.user.username}
+                    </span>
+                    <button
+                      onClick={() => removeIndividualPlayer(p.user.id)}
+                      className="text-neutral-500 hover:text-loss cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <div>
+            <p className="text-xs text-muted mb-2 font-medium flex items-center gap-1">
+              <UserPlus className="h-3.5 w-3.5" />
+              Adicionar jogador
+            </p>
+            <PlayerAutocomplete
+              onSelect={(player) => addIndividualPlayer(player)}
+              excludeIds={selectedIds}
+              placeholder="Buscar jogador..."
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("template")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canGoToScore}
+              onClick={() => setStep("score")}
+            >
+              Próximo: Resultado
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* STEP: Selecionar Jogadores — INDIVIDUAL */}
       {step === "players" && mode === "individual" && (
         <div className="space-y-4">
@@ -1079,6 +1175,89 @@ export default function NewMatchPage() {
               onClick={() => setStep("score")}
             >
               Próximo: Placar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP: Resultado — COOPERATIVO */}
+      {step === "score" && mode === "cooperative" && (
+        <div className="space-y-6">
+          <Card>
+            <p className="text-xs text-muted mb-4 font-medium text-center">O grupo venceu o jogo ou foi derrotado?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setCooperativeWon(true)}
+                className={`flex flex-col items-center gap-3 rounded-xl border p-5 transition-colors cursor-pointer ${
+                  cooperativeWon === true
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-border hover:bg-card-hover hover:border-emerald-600"
+                }`}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">
+                  <Trophy className="h-6 w-6 text-emerald-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-emerald-400">Vencemos!</p>
+                  <p className="text-[10px] text-muted mt-0.5">O grupo derrotou o jogo</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setCooperativeWon(false)}
+                className={`flex flex-col items-center gap-3 rounded-xl border p-5 transition-colors cursor-pointer ${
+                  cooperativeWon === false
+                    ? "border-red-500 bg-red-500/10"
+                    : "border-border hover:bg-card-hover hover:border-red-600"
+                }`}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
+                  <X className="h-6 w-6 text-red-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-red-400">O jogo nos venceu</p>
+                  <p className="text-[10px] text-muted mt-0.5">Derrota coletiva</p>
+                </div>
+              </button>
+            </div>
+          </Card>
+
+          <Card>
+            <p className="text-xs text-muted mb-2 font-medium">Jogadores</p>
+            <div className="space-y-2">
+              {individualPlayers.map((p) => (
+                <div key={p.user.id} className="flex items-center gap-2">
+                  <Avatar name={p.user.username} size="sm" />
+                  <span className="text-xs text-foreground flex-1 truncate">{p.user.username}</span>
+                  {cooperativeWon !== null && (
+                    <span className={`text-xs font-semibold ${
+                      cooperativeWon ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {cooperativeWon ? "Vitória" : "Derrota"}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {error && (
+            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" onClick={() => setStep("players")}>
+              Voltar
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={!canConfirmCooperative || submitting}
+              onClick={handleConfirm}
+            >
+              <Check className="h-5 w-5" />
+              {submitting ? "Salvando..." : "Salvar Partida"}
             </Button>
           </div>
         </div>

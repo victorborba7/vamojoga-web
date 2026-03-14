@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trophy, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Trophy, ChevronDown, ChevronUp, ExternalLink, Handshake } from "lucide-react";
 import type { MatchResponse } from "@/types";
 import Link from "next/link";
 
@@ -24,12 +24,16 @@ export function MatchCard({ match }: MatchCardProps) {
   const winners = match.players.filter((p) => p.is_winner);
   const losers = match.players.filter((p) => !p.is_winner);
 
+  // Cooperative mode
+  const isCooperative = match.match_mode === "cooperative";
+  const cooperativeWon = isCooperative && match.players.some((p) => p.is_winner);
+
   // Detect individual mode: all positions are distinct
   const positions = match.players.map((p) => p.position);
-  const isIndividual = new Set(positions).size === match.players.length;
+  const isIndividual = !isCooperative && new Set(positions).size === match.players.length;
 
   // Detect draw: no winners or all players share position 1
-  const isDraw = winners.length === 0 || match.players.every((p) => p.position === 1);
+  const isDraw = !isCooperative && (winners.length === 0 || match.players.every((p) => p.position === 1));
 
   // Ranking or winner_takes_all: show only positions, no numeric scores
   const positionOnly =
@@ -53,21 +57,31 @@ export function MatchCard({ match }: MatchCardProps) {
         className="flex items-center gap-3 w-full text-left cursor-pointer"
       >
         {/* Position icon / trophy */}
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/10 shrink-0">
-          <Trophy className="h-4 w-4 text-yellow-400" />
+        <div className={`flex h-9 w-9 items-center justify-center rounded-full shrink-0 ${
+          isCooperative
+            ? cooperativeWon ? "bg-emerald-500/10" : "bg-red-500/10"
+            : "bg-yellow-500/10"
+        }`}>
+          {isCooperative
+            ? <Handshake className={`h-4 w-4 ${cooperativeWon ? "text-emerald-400" : "text-red-400"}`} />
+            : <Trophy className="h-4 w-4 text-yellow-400" />}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground truncate">
-              {isDraw
+              {isCooperative
+                ? cooperativeWon
+                  ? "Vitória Coletiva"
+                  : "Derrota Coletiva"
+                : isDraw
                 ? "Empate"
                 : isIndividual
                 ? `${sortedPlayers[0]?.username || "?"} venceu`
                 : `${winnerNames}`}
             </span>
-            {!positionOnly && (
+            {!positionOnly && !isCooperative && (
               <span className={`text-xs font-bold shrink-0 ${isDraw ? "text-amber-400" : "text-win"}`}>
                 {isDraw
                   ? `${sortedPlayers[0]?.score ?? 0} pts`
@@ -76,7 +90,7 @@ export function MatchCard({ match }: MatchCardProps) {
                   : `${winnerScore} × ${loserScore}`}
               </span>
             )}
-            {positionOnly && (
+            {positionOnly && !isCooperative && (
               <span className="text-xs font-medium shrink-0 text-muted">
                 {match.players.length} jogadores
               </span>
@@ -103,7 +117,28 @@ export function MatchCard({ match }: MatchCardProps) {
       {/* Expanded content */}
       {expanded && (
         <div className="mt-4 pt-3 border-t border-border space-y-3">
-          {isIndividual || isDraw ? (
+          {isCooperative ? (
+            /* Cooperative: list all players with shared outcome */
+            <div className="space-y-2">
+              <div className={`text-center rounded-lg py-2 mb-3 ${
+                cooperativeWon ? "bg-emerald-500/10" : "bg-red-500/10"
+              }`}>
+                <span className={`text-xs font-bold ${
+                  cooperativeWon ? "text-emerald-400" : "text-red-400"
+                }`}>
+                  {cooperativeWon ? "O grupo venceu o jogo! 🎉" : "O jogo venceu o grupo"}
+                </span>
+              </div>
+              {match.players.map((player) => (
+                <div key={player.id} className="flex items-center gap-2">
+                  <Avatar name={player.username || "?"} size="sm" />
+                  <span className="text-xs text-foreground font-medium flex-1 truncate">
+                    {player.username || "Jogador"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : isIndividual || isDraw ? (
             /* Individual or draw: show players ranked */
             <div className="space-y-2">
               {sortedPlayers.slice(0, 3).map((player) => (
