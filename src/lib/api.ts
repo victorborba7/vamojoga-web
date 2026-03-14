@@ -16,8 +16,8 @@ import type {
   WishlistEntryResponse,
   CollectionResponse,
   CollectionDetailResponse,
-  CollectionJogoResponse,
-  MembroResponse,
+  CollectionGameResponse,
+  MemberResponse,
   ScoringTemplateResponse,
   ScoringTemplateListResponse,
   ScoringTemplateCreate,
@@ -369,8 +369,8 @@ export async function deleteCollection(id: string): Promise<void> {
 export async function inviteMember(
   collectionId: string,
   userId: string
-): Promise<MembroResponse> {
-  return request<MembroResponse>(`/collections/${collectionId}/membros`, {
+): Promise<MemberResponse> {
+  return request<MemberResponse>(`/collections/${collectionId}/members`, {
     method: "POST",
     body: JSON.stringify({ user_id: userId }),
   });
@@ -380,18 +380,18 @@ export async function removeMember(
   collectionId: string,
   userId: string
 ): Promise<void> {
-  await request(`/collections/${collectionId}/membros/${userId}`, { method: "DELETE" });
+  await request(`/collections/${collectionId}/members/${userId}`, { method: "DELETE" });
 }
 
-export async function getAvailableGames(collectionId: string): Promise<CollectionJogoResponse[]> {
-  return request<CollectionJogoResponse[]>(`/collections/${collectionId}/jogos-disponiveis`);
+export async function getAvailableGames(collectionId: string): Promise<CollectionGameResponse[]> {
+  return request<CollectionGameResponse[]>(`/collections/${collectionId}/available-games`);
 }
 
 export async function addGameToCollection(
   collectionId: string,
   gameId: string
-): Promise<CollectionJogoResponse> {
-  return request<CollectionJogoResponse>(`/collections/${collectionId}/jogos`, {
+): Promise<CollectionGameResponse> {
+  return request<CollectionGameResponse>(`/collections/${collectionId}/games`, {
     method: "POST",
     body: JSON.stringify({ game_id: gameId }),
   });
@@ -401,7 +401,7 @@ export async function removeGameFromCollection(
   collectionId: string,
   gameId: string
 ): Promise<void> {
-  await request(`/collections/${collectionId}/jogos/${gameId}`, { method: "DELETE" });
+  await request(`/collections/${collectionId}/games/${gameId}`, { method: "DELETE" });
 }
 
 // ---- Scoring Templates ----

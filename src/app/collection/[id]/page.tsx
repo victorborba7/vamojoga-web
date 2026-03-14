@@ -9,7 +9,7 @@ import {
   getAvailableGames,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { CollectionDetailResponse, CollectionJogoResponse, MembroResponse, UserResponse } from "@/types";
+import type { CollectionDetailResponse, CollectionGameResponse, MemberResponse, UserResponse } from "@/types";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ export default function CollectionDetailPage() {
 
   // adicionar jogo
   const [addingGame, setAddingGame] = useState(false);
-  const [availableGames, setAvailableGames] = useState<CollectionJogoResponse[]>([]);
+  const [availableGames, setAvailableGames] = useState<CollectionGameResponse[]>([]);
   const [gameSearch, setGameSearch] = useState("");
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
@@ -80,8 +80,8 @@ export default function CollectionDetailPage() {
     if (!selectedGameId || !collection) return;
     setAddingGame(true);
     try {
-      const jogo = await addGameToCollection(collection.id, selectedGameId);
-      setCollection((a) => a ? { ...a, games: [...a.games, jogo], game_count: a.game_count + 1 } : a);
+      const game = await addGameToCollection(collection.id, selectedGameId);
+      setCollection((a) => a ? { ...a, games: [...a.games, game], game_count: a.game_count + 1 } : a);
       setAvailableGames((prev) => prev.filter((g) => g.game_id !== selectedGameId));
       setSelectedGameId(null);
       setGameSearch("");
@@ -92,8 +92,8 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveGame(gameId: string) {
     if (!collection) return;
-    const jogo = collection.games.find((g) => g.game_id === gameId);
-    if (!confirm(`Remover "${jogo?.name ?? "jogo"}" do collection?`)) return;
+    const game = collection.games.find((g) => g.game_id === gameId);
+    if (!confirm(`Remover "${game?.name ?? "jogo"}" do collection?`)) return;
     await removeGameFromCollection(collection.id, gameId);
     setCollection((a) => a ? { ...a, games: a.games.filter((g) => g.game_id !== gameId), game_count: a.game_count - 1 } : a);
   }
@@ -102,8 +102,8 @@ export default function CollectionDetailPage() {
     if (!selectedUser || !collection) return;
     setInviting(true);
     try {
-      const membro = await inviteMember(collection.id, selectedUser.id);
-      setCollection((a) => a ? { ...a, members: [...a.members, membro], member_count: a.member_count + 1 } : a);
+      const member = await inviteMember(collection.id, selectedUser.id);
+      setCollection((a) => a ? { ...a, members: [...a.members, member], member_count: a.member_count + 1 } : a);
       setSelectedUser(null);
     } finally {
       setInviting(false);
@@ -112,8 +112,8 @@ export default function CollectionDetailPage() {
 
   async function handleRemoveMember(userId: string) {
     if (!collection) return;
-    const membro = collection.members.find((m) => m.user_id === userId);
-    if (!confirm(`Remover "${membro?.username ?? "membro"}" do collection?`)) return;
+    const member = collection.members.find((m) => m.user_id === userId);
+    if (!confirm(`Remover "${member?.username ?? "membro"}" do collection?`)) return;
     await removeMember(collection.id, userId);
     setCollection((a) => a ? { ...a, members: a.members.filter((m) => m.user_id !== userId), member_count: a.member_count - 1 } : a);
   }
@@ -266,23 +266,23 @@ export default function CollectionDetailPage() {
 
                 {viewMode === "list" ? (
                   <div className="space-y-2">
-                    {collection.games.slice(0, visibleCount).map((jogo) => (
+                    {collection.games.slice(0, visibleCount).map((game) => (
                       <GameRow
-                        key={jogo.game_id}
-                        jogo={jogo}
-                        canRemove={jogo.added_by === user?.id || isOwner}
-                        onRemove={() => handleRemoveGame(jogo.game_id)}
+                        key={game.game_id}
+                        game={game}
+                        canRemove={game.added_by === user?.id || isOwner}
+                        onRemove={() => handleRemoveGame(game.game_id)}
                       />
                     ))}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    {collection.games.slice(0, visibleCount).map((jogo) => (
+                    {collection.games.slice(0, visibleCount).map((game) => (
                       <GameGridCard
-                        key={jogo.game_id}
-                        jogo={jogo}
-                        canRemove={jogo.added_by === user?.id || isOwner}
-                        onRemove={() => handleRemoveGame(jogo.game_id)}
+                        key={game.game_id}
+                        game={game}
+                        canRemove={game.added_by === user?.id || isOwner}
+                        onRemove={() => handleRemoveGame(game.game_id)}
                       />
                     ))}
                   </div>
@@ -324,7 +324,7 @@ export default function CollectionDetailPage() {
             {collection.members.map((m) => (
               <MemberRow
                 key={m.user_id}
-                membro={m}
+                member={m}
                 isMe={m.user_id === user?.id}
                 isOwner={isOwner}
                 onRemove={() => handleRemoveMember(m.user_id)}
@@ -338,22 +338,22 @@ export default function CollectionDetailPage() {
 }
 
 function GameRow({
-  jogo,
+  game,
   canRemove,
   onRemove,
 }: {
-  jogo: CollectionJogoResponse;
+  game: CollectionGameResponse;
   canRemove: boolean;
   onRemove: () => void;
 }) {
   return (
     <Card className="p-3 flex items-center gap-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{jogo.name}</p>
+        <p className="text-sm font-medium text-foreground truncate">{game.name}</p>
         <p className="text-xs text-muted">
-          {jogo.year && `${jogo.year} · `}
-          {jogo.bayes_rating && `★ ${jogo.bayes_rating.toFixed(1)} · `}
-          adicionado por {jogo.added_by_username ?? "?"}
+          {game.year && `${game.year} · `}
+          {game.bayes_rating && `★ ${game.bayes_rating.toFixed(1)} · `}
+          adicionado por {game.added_by_username ?? "?"}
         </p>
       </div>
       {canRemove && (
@@ -366,29 +366,29 @@ function GameRow({
 }
 
 function GameGridCard({
-  jogo,
+  game,
   canRemove,
   onRemove,
 }: {
-  jogo: CollectionJogoResponse;
+  game: CollectionGameResponse;
   canRemove: boolean;
   onRemove: () => void;
 }) {
   return (
     <div className="flex flex-col">
-      {jogo.image_url ? (
-        <img src={jogo.image_url} alt={jogo.name} className="w-full aspect-square rounded-xl object-cover" />
+      {game.image_url ? (
+        <img src={game.image_url} alt={game.name} className="w-full aspect-square rounded-xl object-cover" />
       ) : (
         <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
           <Gamepad2 className="h-8 w-8 text-muted" />
         </div>
       )}
-      <p className="text-xs font-semibold text-foreground truncate mt-2">{jogo.name}</p>
+      <p className="text-xs font-semibold text-foreground truncate mt-2">{game.name}</p>
       <p className="text-[10px] text-muted">
-        {jogo.year ? `${jogo.year} · ` : ""}
-        {jogo.bayes_rating ? `★ ${jogo.bayes_rating.toFixed(1)}` : ""}
+        {game.year ? `${game.year} · ` : ""}
+        {game.bayes_rating ? `★ ${game.bayes_rating.toFixed(1)}` : ""}
       </p>
-      <p className="text-[10px] text-muted truncate">{jogo.added_by_username ?? "?"}</p>
+      <p className="text-[10px] text-muted truncate">{game.added_by_username ?? "?"}</p>
       {canRemove && (
         <button
           onClick={onRemove}
@@ -402,26 +402,26 @@ function GameGridCard({
 }
 
 function MemberRow({
-  membro,
+  member,
   isMe,
   isOwner,
   onRemove,
 }: {
-  membro: MembroResponse;
+  member: MemberResponse;
   isMe: boolean;
   isOwner: boolean;
   onRemove: () => void;
 }) {
-  const canRemove = (isOwner && membro.role !== "owner") || (isMe && membro.role !== "owner");
+  const canRemove = (isOwner && member.role !== "owner") || (isMe && member.role !== "owner");
   return (
     <Card className="p-3 flex items-center gap-3">
-      <Avatar name={membro.full_name ?? membro.username} size="sm" />
+      <Avatar name={member.full_name ?? member.username} size="sm" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground">
-          {membro.full_name ?? membro.username}
+          {member.full_name ?? member.username}
           {isMe && <span className="text-xs text-muted ml-1">(você)</span>}
         </p>
-        <p className="text-xs text-muted capitalize">{membro.role === "owner" ? "dono" : "membro"}</p>
+        <p className="text-xs text-muted capitalize">{member.role === "owner" ? "dono" : "membro"}</p>
       </div>
       {canRemove && (
         <button onClick={onRemove} className="text-xs text-muted hover:text-red-400">

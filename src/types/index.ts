@@ -192,7 +192,7 @@ export interface WishlistEntryResponse {
 }
 
 // ---- Collections ----
-export interface MembroResponse {
+export interface MemberResponse {
   user_id: string;
   username: string;
   full_name: string | null;
@@ -200,7 +200,7 @@ export interface MembroResponse {
   joined_at: string;
 }
 
-export interface CollectionJogoResponse {
+export interface CollectionGameResponse {
   game_id: string;
   name: string;
   bgg_id: number | null;
@@ -223,8 +223,8 @@ export interface CollectionResponse {
 }
 
 export interface CollectionDetailResponse extends CollectionResponse {
-  members: MembroResponse[];
-  games: CollectionJogoResponse[];
+  members: MemberResponse[];
+  games: CollectionGameResponse[];
 }
 
 // ---- Scoring Templates ----
