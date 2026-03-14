@@ -31,9 +31,9 @@ export function PushPermissionBanner() {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         const token = localStorage.getItem("token") ?? "";
-        const ok = await subscribeToPush(token);
-        if (!ok) {
-          setError("Não foi possível ativar. Tente novamente.");
+        const result = await subscribeToPush(token);
+        if (!result.ok) {
+          setError(result.message);
           setRequesting(false);
           return;
         }
