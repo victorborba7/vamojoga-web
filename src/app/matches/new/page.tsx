@@ -460,7 +460,7 @@ export default function NewMatchPage() {
       const result = await createMatch({
         game_id: selectedGame.id,
         scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
-        match_mode: mode === "teams" ? "team" : scoringType,
+        match_mode: mode === "teams" ? "team" : (useTemplate && selectedTemplate ? selectedTemplate.match_mode : scoringType),
         players,
       });
       if (result.unlocked_achievements && result.unlocked_achievements.length > 0) {
