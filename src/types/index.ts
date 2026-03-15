@@ -4,6 +4,14 @@ export interface UserCreate {
   email: string;
   password: string;
   full_name?: string;
+  invite_token?: string;
+}
+
+export interface GuestInviteValidationResponse {
+  guest_name: string;
+  email: string;
+  expires_at: string;
+  is_valid: boolean;
 }
 
 export interface UserLogin {
@@ -70,7 +78,8 @@ export interface GameCreate {
 
 // ---- Match ----
 export interface MatchPlayerCreate {
-  user_id: string;
+  user_id?: string;
+  guest_id?: string;
   position: number;
   score: number;
   is_winner: boolean;
@@ -98,14 +107,37 @@ export interface MatchTemplateScoreResponse {
 
 export interface MatchPlayerResponse {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  guest_id: string | null;
   username: string | null;
+  guest_name: string | null;
+  participant_name: string | null;
   position: number;
   score: number;
   is_winner: boolean;
   scores_submitted: boolean;
   scores_submitted_at: string | null;
   template_scores: MatchTemplateScoreResponse[];
+}
+
+// ---- Guests ----
+export interface GuestCreate {
+  name: string;
+  email?: string;
+}
+
+export interface GuestUpdate {
+  name?: string;
+  email?: string | null;
+}
+
+export interface GuestResponse {
+  id: string;
+  owner_id: string;
+  name: string;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MatchResponse {

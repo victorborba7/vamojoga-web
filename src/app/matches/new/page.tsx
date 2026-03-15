@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import {
   DndContext,
   closestCenter,
@@ -27,9 +28,10 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, ApiError } from "@/lib/api";
+import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, listGuests, ApiError } from "@/lib/api";
 import type {
   UserResponse,
+  GuestResponse,
   GameResponse,
   MatchPlayerCreate,
   ScoringTemplateListResponse,
@@ -50,6 +52,36 @@ interface IndividualPlayer {
   user: UserResponse;
   score: number;
   position: number;
+}
+
+const GUEST_PREFIX = "guest:";
+
+function guestLocalId(guestId: string): string {
+  return `${GUEST_PREFIX}${guestId}`;
+}
+
+function isGuestLocalId(id: string): boolean {
+  return id.startsWith(GUEST_PREFIX);
+}
+
+function getEntityId(id: string): string {
+  return isGuestLocalId(id) ? id.slice(GUEST_PREFIX.length) : id;
+}
+
+function toGuestParticipant(guest: GuestResponse): UserResponse {
+  return {
+    id: guestLocalId(guest.id),
+    username: guest.name,
+    email: guest.email || `guest-${guest.id}@vamojoga.local`,
+    full_name: null,
+    is_active: true,
+    email_verified: false,
+    created_at: guest.created_at,
+  };
+}
+
+function participantLabel(player: UserResponse): string {
+  return isGuestLocalId(player.id) ? `${player.username} (Convidado)` : player.username;
 }
 
 interface InlineFieldDraft {
@@ -82,6 +114,7 @@ export default function NewMatchPage() {
   const [step, setStep] = useState<Step>("game");
   const [mode, setMode] = useState<MatchMode>("teams");
   const [selectedGame, setSelectedGame] = useState<GameResponse | null>(null);
+  const [guests, setGuests] = useState<GuestResponse[]>([]);
 
   // Teams mode
   const [teamA, setTeamA] = useState<UserResponse[]>([]);
@@ -162,6 +195,15 @@ export default function NewMatchPage() {
       router.push("/login");
       return;
     }
+
+    (async () => {
+      try {
+        const data = await listGuests();
+        setGuests(data);
+      } catch {
+        setGuests([]);
+      }
+    })();
   }, [user, authLoading, router]);
 
   // Fetch available templates when game is selected
@@ -184,8 +226,23 @@ export default function NewMatchPage() {
 
   const selectedIds =
     mode === "teams"
+      ? [...teamA, ...teamB].map((p) => p.id).filter((id) => !isGuestLocalId(id))
+      : individualPlayers.map((p) => p.user.id).filter((id) => !isGuestLocalId(id));
+
+  const selectedParticipantIds =
+    mode === "teams"
       ? [...teamA, ...teamB].map((p) => p.id)
       : individualPlayers.map((p) => p.user.id);
+
+  const hasGuestSelected = selectedParticipantIds.some((id) => isGuestLocalId(id));
+
+  const availableGuests = guests.filter((g) => !selectedParticipantIds.includes(guestLocalId(g.id)));
+
+  useEffect(() => {
+    if (hasGuestSelected && collaborativeScoring) {
+      setCollaborativeScoring(false);
+    }
+  }, [hasGuestSelected, collaborativeScoring]);
 
   // --- Teams helpers ---
   function addPlayer(player: UserResponse) {
@@ -194,6 +251,10 @@ export default function NewMatchPage() {
     } else {
       setTeamB((prev) => [...prev, player]);
     }
+  }
+
+  function addGuestToTeam(guest: GuestResponse) {
+    addPlayer(toGuestParticipant(guest));
   }
 
   function removePlayer(playerId: string, team: "A" | "B") {
@@ -210,6 +271,10 @@ export default function NewMatchPage() {
       ...prev,
       { user: player, score: 0, position: prev.length + 1 },
     ]);
+  }
+
+  function addIndividualGuest(guest: GuestResponse) {
+    addIndividualPlayer(toGuestParticipant(guest));
   }
 
   function removeIndividualPlayer(playerId: string) {
@@ -425,7 +490,8 @@ export default function NewMatchPage() {
 
     if (mode === "cooperative") {
       players = individualPlayers.map((p) => ({
-        user_id: p.user.id,
+        user_id: isGuestLocalId(p.user.id) ? undefined : getEntityId(p.user.id),
+        guest_id: isGuestLocalId(p.user.id) ? getEntityId(p.user.id) : undefined,
         position: cooperativeWon ? 1 : 2,
         score: 0,
         is_winner: cooperativeWon === true,
@@ -437,7 +503,8 @@ export default function NewMatchPage() {
       const isTeamAWinner = scoreA > scoreB;
       players = [
         ...teamA.map((p) => ({
-          user_id: p.id,
+          user_id: isGuestLocalId(p.id) ? undefined : getEntityId(p.id),
+          guest_id: isGuestLocalId(p.id) ? getEntityId(p.id) : undefined,
           position: isTeamAWinner ? 1 : 2,
           score: scoreA,
           is_winner: isTeamAWinner,
@@ -446,7 +513,8 @@ export default function NewMatchPage() {
             : [],
         })),
         ...teamB.map((p) => ({
-          user_id: p.id,
+          user_id: isGuestLocalId(p.id) ? undefined : getEntityId(p.id),
+          guest_id: isGuestLocalId(p.id) ? getEntityId(p.id) : undefined,
           position: isTeamAWinner ? 2 : 1,
           score: scoreB,
           is_winner: !isTeamAWinner,
@@ -457,7 +525,8 @@ export default function NewMatchPage() {
       ];
     } else {
       players = individualPlayers.map((p) => ({
-        user_id: p.user.id,
+        user_id: isGuestLocalId(p.user.id) ? undefined : getEntityId(p.user.id),
+        guest_id: isGuestLocalId(p.user.id) ? getEntityId(p.user.id) : undefined,
         position: p.position,
         score: p.score,
         is_winner: p.position === 1,
@@ -917,8 +986,12 @@ export default function NewMatchPage() {
           {useTemplate && selectedTemplate && mode !== "cooperative" && (
             <Card>
               <button
-                onClick={() => setCollaborativeScoring(!collaborativeScoring)}
-                className="flex items-center gap-3 w-full text-left cursor-pointer"
+                onClick={() => {
+                  if (!hasGuestSelected) {
+                    setCollaborativeScoring(!collaborativeScoring);
+                  }
+                }}
+                className={`flex items-center gap-3 w-full text-left ${hasGuestSelected ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
               >
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${
                   collaborativeScoring ? "bg-primary-600/20" : "bg-neutral-800"
@@ -928,7 +1001,9 @@ export default function NewMatchPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">Pontuação colaborativa</p>
                   <p className="text-[10px] text-muted mt-0.5">
-                    Cada jogador registra sua própria pontuação pelo celular
+                    {hasGuestSelected
+                      ? "Desativado: convidados nao podem registrar propria pontuacao"
+                      : "Cada jogador registra sua propria pontuacao pelo celular"}
                   </p>
                 </div>
                 <div className={`w-10 h-6 rounded-full relative transition-colors ${
@@ -1077,6 +1152,30 @@ export default function NewMatchPage() {
             />
           </div>
 
+          <Card>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-xs text-muted font-medium">Convidados salvos</p>
+              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+                Gerenciar convidados
+              </Link>
+            </div>
+            {availableGuests.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableGuests.map((guest) => (
+                  <button
+                    key={guest.id}
+                    onClick={() => addGuestToTeam(guest)}
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground hover:border-primary-500 hover:bg-primary-600/10 cursor-pointer"
+                  >
+                    + {guest.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+
           <div className="flex gap-3">
             <Button variant="outline" size="lg" onClick={() => setStep("template")}>
               Voltar
@@ -1136,6 +1235,30 @@ export default function NewMatchPage() {
               placeholder="Buscar jogador..."
             />
           </div>
+
+          <Card>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-xs text-muted font-medium">Convidados salvos</p>
+              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+                Gerenciar convidados
+              </Link>
+            </div>
+            {availableGuests.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableGuests.map((guest) => (
+                  <button
+                    key={guest.id}
+                    onClick={() => addIndividualGuest(guest)}
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground hover:border-primary-500 hover:bg-primary-600/10 cursor-pointer"
+                  >
+                    + {guest.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
 
           <div className="flex gap-3">
             <Button variant="outline" size="lg" onClick={() => setStep("template")}>
@@ -1198,6 +1321,30 @@ export default function NewMatchPage() {
               placeholder="Buscar jogador..."
             />
           </div>
+
+          <Card>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-xs text-muted font-medium">Convidados salvos</p>
+              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+                Gerenciar convidados
+              </Link>
+            </div>
+            {availableGuests.length === 0 ? (
+              <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableGuests.map((guest) => (
+                  <button
+                    key={guest.id}
+                    onClick={() => addIndividualGuest(guest)}
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground hover:border-primary-500 hover:bg-primary-600/10 cursor-pointer"
+                  >
+                    + {guest.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
 
           <div className="flex gap-3">
             <Button variant="outline" size="lg" onClick={() => setStep("template")}>

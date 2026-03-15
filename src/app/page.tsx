@@ -140,12 +140,20 @@ export default function Home() {
       </div>
 
       {/* CTA Principal */}
-      <Link href="/matches/new" className="block mb-6">
-        <Button variant="accent" size="lg" className="w-full">
-          <Zap className="h-5 w-5" />
-          Registrar Partida
-        </Button>
-      </Link>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <Link href="/matches/new" className="block">
+          <Button variant="accent" size="lg" className="w-full">
+            <Zap className="h-5 w-5" />
+            Registrar Partida
+          </Button>
+        </Link>
+        <Link href="/guests" className="block">
+          <Button variant="outline" size="lg" className="w-full">
+            <Users className="h-5 w-5" />
+            Convidados
+          </Button>
+        </Link>
+      </div>
 
       {/* Quick Stats */}
       {stats && (

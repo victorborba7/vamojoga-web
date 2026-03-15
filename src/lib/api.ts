@@ -3,6 +3,10 @@ import type {
   UserCreate,
   UserLogin,
   UserResponse,
+  GuestInviteValidationResponse,
+  GuestCreate,
+  GuestUpdate,
+  GuestResponse,
   GameResponse,
   GameCreate,
   MatchResponse,
@@ -93,6 +97,10 @@ export async function register(data: UserCreate): Promise<UserResponse> {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export async function validateGuestInvite(token: string): Promise<GuestInviteValidationResponse> {
+  return request<GuestInviteValidationResponse>(`/auth/guest-invite/${encodeURIComponent(token)}`);
 }
 
 export async function login(data: UserLogin): Promise<TokenResponse> {
@@ -320,6 +328,32 @@ export async function addToWishlist(
 
 export async function removeFromWishlist(gameId: string): Promise<void> {
   await request(`/wishlist/${gameId}`, { method: "DELETE" });
+}
+
+// ---- Guests ----
+
+export async function listGuests(): Promise<GuestResponse[]> {
+  return request<GuestResponse[]>("/guests/");
+}
+
+export async function createGuest(data: GuestCreate): Promise<GuestResponse> {
+  return request<GuestResponse>("/guests/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGuest(guestId: string, data: GuestUpdate): Promise<GuestResponse> {
+  return request<GuestResponse>(`/guests/${guestId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGuest(guestId: string): Promise<void> {
+  await request(`/guests/${guestId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function updateWishlistVisibility(

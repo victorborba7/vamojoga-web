@@ -1,26 +1,69 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError } from "@/lib/api";
+import { ApiError, validateGuestInvite } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteGuestName, setInviteGuestName] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const token = searchParams.get("invite");
+    const invitedEmail = searchParams.get("email");
+
+    if (invitedEmail) {
+      setEmail(invitedEmail);
+    }
+
+    if (!token) {
+      setInviteToken(null);
+      setInviteGuestName(null);
+      return;
+    }
+
+    setInviteToken(token);
+    setInviteLoading(true);
+    setError("");
+
+    (async () => {
+      try {
+        const invite = await validateGuestInvite(token);
+        setInviteGuestName(invite.guest_name);
+        if (!invitedEmail) {
+          setEmail(invite.email);
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Convite invalido ou expirado");
+        }
+        setInviteToken(null);
+        setInviteGuestName(null);
+      } finally {
+        setInviteLoading(false);
+      }
+    })();
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +90,7 @@ export default function RegisterPage() {
         email,
         password,
         full_name: fullName || undefined,
+        invite_token: inviteToken || undefined,
       });
       router.push("/");
     } catch (err) {
@@ -75,6 +119,14 @@ export default function RegisterPage() {
         <p className="text-sm text-muted mb-6">Junte-se ao VamoJogá</p>
 
         <Card className="w-full max-w-sm">
+          {inviteLoading && (
+            <p className="text-xs text-muted mb-3 text-center">Validando convite...</p>
+          )}
+          {!inviteLoading && inviteGuestName && (
+            <p className="text-xs text-primary-400 mb-3 text-center">
+              Voce foi convidado como <strong>{inviteGuestName}</strong>.
+            </p>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs text-muted mb-1 font-medium">
@@ -109,6 +161,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
+                readOnly={Boolean(inviteToken)}
               />
             </div>
             <div>

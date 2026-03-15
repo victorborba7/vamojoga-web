@@ -209,10 +209,10 @@ export default function MatchDetailPage() {
                         : "bg-neutral-800/50 border border-border"
                     }`}
                   >
-                    <Avatar name={player.username || "?"} size="sm" />
+                    <Avatar name={player.participant_name || player.username || "?"} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {player.username || "Jogador"}
+                        {player.participant_name || player.username || "Jogador"}
                         {isMe && <span className="text-xs text-muted ml-1">(você)</span>}
                       </p>
                     </div>
@@ -324,9 +324,9 @@ export default function MatchDetailPage() {
                         >
                           {rank}º
                         </span>
-                        <Avatar name={p.username || "?"} size="sm" />
+                        <Avatar name={p.participant_name || p.username || "?"} size="sm" />
                         <span className="text-sm text-foreground font-medium flex-1 truncate">
-                          {p.username || "Jogador"}
+                          {p.participant_name || p.username || "Jogador"}
                         </span>
                         <span className="text-sm font-bold text-foreground">
                           {p.calculatedTotal} pts
@@ -359,9 +359,9 @@ export default function MatchDetailPage() {
                         setExpandedPlayer(expandedPlayer === player.id ? null : player.id)
                       }
                     >
-                      <Avatar name={player.username || "?"} size="sm" />
+                      <Avatar name={player.participant_name || player.username || "?"} size="sm" />
                       <span className="text-xs font-semibold text-foreground flex-1 truncate">
-                        {player.username || "Jogador"}
+                        {player.participant_name || player.username || "Jogador"}
                       </span>
                       {expandedPlayer === player.id ? (
                         <ChevronUp className="h-3.5 w-3.5 text-neutral-500" />
@@ -402,7 +402,7 @@ export default function MatchDetailPage() {
             <Card className="border-amber-500/30 bg-amber-500/5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold text-foreground">
-                  Preencher para: {match.players.find((p) => p.user_id === scoringForPlayer)?.username}
+                  Preencher para: {match.players.find((p) => p.user_id === scoringForPlayer)?.participant_name || match.players.find((p) => p.user_id === scoringForPlayer)?.username}
                 </p>
                 <button
                   onClick={() => setScoringForPlayer(null)}
@@ -550,10 +550,10 @@ export default function MatchDetailPage() {
                     >
                       {player.position}º
                     </span>
-                    <Avatar name={player.username || "?"} size="md" />
+                    <Avatar name={player.participant_name || player.username || "?"} size="md" />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground">
-                        {player.username || "Jogador"}
+                        {player.participant_name || player.username || "Jogador"}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {player.is_winner && (
@@ -609,7 +609,7 @@ export default function MatchDetailPage() {
               <div className="flex flex-col items-center gap-2 flex-1">
                 <div className="flex -space-x-2">
                   {winners.map((p) => (
-                    <Avatar key={p.id} name={p.username || "?"} size="md" />
+                    <Avatar key={p.id} name={p.participant_name || p.username || "?"} size="md" />
                   ))}
                 </div>
                 <Badge variant="win">
@@ -631,7 +631,7 @@ export default function MatchDetailPage() {
               <div className="flex flex-col items-center gap-2 flex-1">
                 <div className="flex -space-x-2">
                   {losers.map((p) => (
-                    <Avatar key={p.id} name={p.username || "?"} size="md" />
+                    <Avatar key={p.id} name={p.participant_name || p.username || "?"} size="md" />
                   ))}
                 </div>
                 <Badge variant="loss">Derrota</Badge>
@@ -647,10 +647,10 @@ export default function MatchDetailPage() {
               {winners.map((player) => (
                 <Card key={player.id} className="p-3!">
                   <div className="flex items-center gap-2">
-                    <Avatar name={player.username || "?"} size="sm" />
+                    <Avatar name={player.participant_name || player.username || "?"} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {player.username || "Jogador"}
+                        {player.participant_name || player.username || "Jogador"}
                       </p>
                       {!positionOnly && (
                         <p className="text-xs text-win font-medium">
@@ -668,10 +668,10 @@ export default function MatchDetailPage() {
               {losers.map((player) => (
                 <Card key={player.id} className="p-3!">
                   <div className="flex items-center gap-2">
-                    <Avatar name={player.username || "?"} size="sm" />
+                    <Avatar name={player.participant_name || player.username || "?"} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {player.username || "Jogador"}
+                        {player.participant_name || player.username || "Jogador"}
                       </p>
                       {!positionOnly && (
                         <p className="text-xs text-neutral-400 font-medium">
@@ -702,9 +702,9 @@ export default function MatchDetailPage() {
             .map((player) => (
               <Card key={player.id} className="p-3!">
                 <div className="flex items-center gap-2 mb-2">
-                  <Avatar name={player.username || "?"} size="sm" />
+                  <Avatar name={player.participant_name || player.username || "?"} size="sm" />
                   <span className="text-sm font-semibold text-foreground flex-1 truncate">
-                    {player.username || "Jogador"}
+                    {player.participant_name || player.username || "Jogador"}
                   </span>
                   {!positionOnly && (
                     <span className="text-sm font-bold text-foreground">
