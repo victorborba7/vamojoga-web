@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import Link from "next/link";
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -27,8 +26,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = searchParams.get("invite");
-    const invitedEmail = searchParams.get("email");
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite");
+    const invitedEmail = params.get("email");
 
     if (invitedEmail) {
       setEmail(invitedEmail);
@@ -63,7 +63,7 @@ export default function RegisterPage() {
         setInviteLoading(false);
       }
     })();
-  }, [searchParams]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
