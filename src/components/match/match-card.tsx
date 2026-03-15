@@ -15,6 +15,9 @@ interface MatchCardProps {
 export function MatchCard({ match }: MatchCardProps) {
   const [expanded, setExpanded] = useState(false);
 
+  const getParticipantName = (player: MatchResponse["players"][number]) =>
+    player.participant_name || player.username || player.guest_name || "Jogador";
+
   const date = new Date(match.played_at).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -45,7 +48,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const loserScore = losers[0]?.score ?? 0;
 
   // Winner display name(s)
-  const winnerNames = winners.map((p) => p.username || "?").join(", ");
+  const winnerNames = winners.map((p) => getParticipantName(p)).join(", ");
 
   // Sorted players for expanded view
   const sortedPlayers = [...match.players].sort((a, b) => a.position - b.position);
@@ -85,7 +88,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 : isDraw
                 ? "Empate"
                 : isIndividual
-                ? `${sortedPlayers[0]?.username || "?"} venceu`
+                ? `${sortedPlayers[0] ? getParticipantName(sortedPlayers[0]) : "?"} venceu`
                 : `${winnerNames}`}
             </span>
             {!isPending && !positionOnly && !isCooperative && (
@@ -139,9 +142,9 @@ export function MatchCard({ match }: MatchCardProps) {
             <div className="space-y-2">
               {match.players.map((player) => (
                 <div key={player.id} className="flex items-center gap-2">
-                  <Avatar name={player.username || "?"} size="sm" />
+                  <Avatar name={getParticipantName(player)} size="sm" />
                   <span className="text-xs text-foreground font-medium flex-1 truncate">
-                    {player.username || "Jogador"}
+                    {getParticipantName(player)}
                   </span>
                   {player.scores_submitted ? (
                     <span className="text-xs font-semibold text-emerald-400">Enviado</span>
@@ -165,9 +168,9 @@ export function MatchCard({ match }: MatchCardProps) {
               </div>
               {match.players.map((player) => (
                 <div key={player.id} className="flex items-center gap-2">
-                  <Avatar name={player.username || "?"} size="sm" />
+                  <Avatar name={getParticipantName(player)} size="sm" />
                   <span className="text-xs text-foreground font-medium flex-1 truncate">
-                    {player.username || "Jogador"}
+                    {getParticipantName(player)}
                   </span>
                 </div>
               ))}
@@ -188,9 +191,9 @@ export function MatchCard({ match }: MatchCardProps) {
                   >
                     {player.position}º
                   </span>
-                  <Avatar name={player.username || "?"} size="sm" />
+                  <Avatar name={getParticipantName(player)} size="sm" />
                   <span className="text-xs text-foreground font-medium flex-1 truncate">
-                    {player.username || "Jogador"}
+                    {getParticipantName(player)}
                   </span>
                   {!positionOnly && (
                     <span className="text-xs font-bold text-muted">
@@ -214,12 +217,12 @@ export function MatchCard({ match }: MatchCardProps) {
               <div className="flex flex-col items-center gap-1.5 flex-1">
                 <div className="flex -space-x-2">
                   {winners.map((player) => (
-                    <Avatar key={player.id} name={player.username || "?"} size="sm" />
+                    <Avatar key={player.id} name={getParticipantName(player)} size="sm" />
                   ))}
                 </div>
                 <div className="text-center">
                   {winners.map((p) => (
-                    <p key={p.id} className="text-xs text-muted truncate">{p.username}</p>
+                    <p key={p.id} className="text-xs text-muted truncate">{getParticipantName(p)}</p>
                   ))}
                 </div>
                 <Badge variant="win">{isDraw ? "Empate" : "Vencedor"}</Badge>
@@ -234,12 +237,12 @@ export function MatchCard({ match }: MatchCardProps) {
               <div className="flex flex-col items-center gap-1.5 flex-1">
                 <div className="flex -space-x-2">
                   {losers.map((player) => (
-                    <Avatar key={player.id} name={player.username || "?"} size="sm" />
+                    <Avatar key={player.id} name={getParticipantName(player)} size="sm" />
                   ))}
                 </div>
                 <div className="text-center">
                   {losers.map((p) => (
-                    <p key={p.id} className="text-xs text-muted truncate">{p.username}</p>
+                    <p key={p.id} className="text-xs text-muted truncate">{getParticipantName(p)}</p>
                   ))}
                 </div>
                 <Badge variant="loss">{isDraw ? "Empate" : "Derrota"}</Badge>
