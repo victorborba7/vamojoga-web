@@ -173,6 +173,10 @@ export async function searchGames(query: string, limit = 20, excludeExpansions =
   );
 }
 
+export async function getGameRecommendations(limit = 10): Promise<GameResponse[]> {
+  return request<GameResponse[]>(`/games/recommendations/?limit=${limit}`);
+}
+
 export async function createGame(data: GameCreate): Promise<GameResponse> {
   return request<GameResponse>("/games/", {
     method: "POST",

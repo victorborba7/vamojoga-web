@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { ExploreSheet } from "@/components/games/explore-sheet";
 import {
   BookOpen,
   ClipboardList,
@@ -31,6 +32,7 @@ export default function GamesHubPage() {
   const [libraryItems, setLibraryItems] = useState<LibraryEntryResponse[]>([]);
   const [wishlistItems, setWishlistItems] = useState<WishlistEntryResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showExplore, setShowExplore] = useState(false);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -87,6 +89,19 @@ export default function GamesHubPage() {
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {gamesSubmenu.map((item) => {
           const Icon = item.icon;
+          const isExplore = item.label === "Explorar jogos";
+          if (isExplore) {
+            return (
+              <button
+                key="explore"
+                onClick={() => setShowExplore(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors whitespace-nowrap"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+              </button>
+            );
+          }
           return (
             <Link
               key={item.href}
@@ -99,6 +114,8 @@ export default function GamesHubPage() {
           );
         })}
       </div>
+
+      <ExploreSheet open={showExplore} onClose={() => setShowExplore(false)} />
 
       {/* Search */}
       <div className="relative mb-6">
