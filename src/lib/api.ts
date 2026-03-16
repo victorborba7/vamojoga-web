@@ -334,6 +334,23 @@ export async function removeFromWishlist(gameId: string): Promise<void> {
   await request(`/wishlist/${gameId}`, { method: "DELETE" });
 }
 
+// ---- Favorites ----
+
+export async function getMyFavorites(): Promise<LibraryEntryResponse[]> {
+  return request<LibraryEntryResponse[]>("/favorites/");
+}
+
+export async function addToFavorites(gameId: string): Promise<LibraryEntryResponse> {
+  return request<LibraryEntryResponse>("/favorites/", {
+    method: "POST",
+    body: JSON.stringify({ game_id: gameId }),
+  });
+}
+
+export async function removeFromFavorites(gameId: string): Promise<void> {
+  await request(`/favorites/${gameId}`, { method: "DELETE" });
+}
+
 // ---- Guests ----
 
 export async function listGuests(): Promise<GuestResponse[]> {

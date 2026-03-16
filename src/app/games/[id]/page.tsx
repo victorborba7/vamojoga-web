@@ -10,6 +10,7 @@ import { MatchCard } from "@/components/match/match-card";
 import {
   BookOpen,
   Heart,
+  Bookmark,
   Trophy,
   Users,
   Clock,
@@ -32,6 +33,9 @@ import {
   getMyWishlist,
   addToWishlist,
   removeFromWishlist,
+  getMyFavorites,
+  addToFavorites,
+  removeFromFavorites,
   getFriends,
   getUserLibrary,
   ApiError,
@@ -72,10 +76,12 @@ export default function GameDetailPage({ params }: Props) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [inLibrary, setInLibrary] = useState(false);
   const [inWishlist, setInWishlist] = useState(false);
+  const [inFavorites, setInFavorites] = useState(false);
   const [friendsWhoOwn, setFriendsWhoOwn] = useState<FriendResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showDescModal, setShowDescModal] = useState(false);
   const [error, setError] = useState("");
@@ -83,12 +89,13 @@ export default function GameDetailPage({ params }: Props) {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [g, allMatches, userStats, lib, wish, friends] = await Promise.all([
+      const [g, allMatches, userStats, lib, wish, favs, friends] = await Promise.all([
         getGame(id),
         getUserMatches(user.id),
         getUserStats(user.id),
         getMyLibrary(),
         getMyWishlist(),
+        getMyFavorites(),
         getFriends(),
       ]);
       setGame(g);
@@ -96,6 +103,7 @@ export default function GameDetailPage({ params }: Props) {
       setStats(userStats);
       setInLibrary(lib.some((e) => e.game.id === id));
       setInWishlist(wish.some((e) => e.game.id === id));
+      setInFavorites(favs.some((e) => e.game.id === id));
 
       // Check which friends own this game (parallel requests)
       const ownerChecks = await Promise.all(
@@ -162,6 +170,25 @@ export default function GameDetailPage({ params }: Props) {
       if (err instanceof ApiError) setError(err.message);
     } finally {
       setWishlistLoading(false);
+    }
+  }
+
+  async function toggleFavorites() {
+    if (!game) return;
+    setFavoritesLoading(true);
+    setError("");
+    try {
+      if (inFavorites) {
+        await removeFromFavorites(game.id);
+        setInFavorites(false);
+      } else {
+        await addToFavorites(game.id);
+        setInFavorites(true);
+      }
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    } finally {
+      setFavoritesLoading(false);
     }
   }
 
@@ -288,6 +315,25 @@ export default function GameDetailPage({ params }: Props) {
             <Heart className="h-4 w-4" />
           )}
           {inWishlist ? "Na wishlist" : "Wishlist"}
+        </button>
+
+        <button
+          onClick={toggleFavorites}
+          disabled={favoritesLoading}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all border",
+            inFavorites
+              ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10"
+              : "bg-white/5 text-muted border-white/10 hover:bg-white/10 hover:text-foreground",
+            favoritesLoading && "opacity-40 cursor-not-allowed"
+          )}
+        >
+          {favoritesLoading ? (
+            <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          ) : (
+            <Bookmark className={cn("h-4 w-4", inFavorites && "fill-yellow-400")} />
+          )}
+          {inFavorites ? "Favorito" : "Favoritar"}
         </button>
       </div>
 

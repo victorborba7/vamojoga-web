@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   BookOpen,
   Heart,
+  Bookmark,
   Plus,
   Trash2,
   Search,
@@ -31,6 +32,8 @@ import {
   addToWishlist,
   removeFromWishlist,
   updateWishlistVisibility,
+  getMyFavorites,
+  removeFromFavorites,
   searchGames,
   getUserMatches,
   ApiError,
@@ -39,7 +42,7 @@ import type { LibraryEntryResponse, WishlistEntryResponse, GameResponse } from "
 import { cn } from "@/lib/utils";
 import { useDebouncedCallback, useAuthGuard, useInfiniteScroll } from "@/lib/hooks";
 
-type Tab = "library" | "wishlist";
+type Tab = "library" | "wishlist" | "favorites";
 type ViewMode = "list" | "grid";
 type SortOrder = "recent" | "alpha" | "most_played";
 
@@ -730,16 +733,165 @@ function WishlistTab() {
   );
 }
 
+// ---------- FavoritesTab ----------
+
+function FavoritesTab() {
+  const [entries, setEntries] = useState<LibraryEntryResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [entries.length]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setVisibleCount((v) => v + PAGE_SIZE); },
+      { threshold: 0 }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.length]);
+
+  function toggleView(mode: ViewMode) {
+    setViewMode(mode);
+    setStoredViewMode(mode);
+  }
+
+  const load = useCallback(async () => {
+    try {
+      setEntries(await getMyFavorites());
+    } catch { setError("Erro ao carregar favoritos"); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleRemove(gameId: string) {
+    const entry = entries.find((e) => e.game.id === gameId);
+    if (!confirm(`Remover "${entry?.game.name_pt ?? entry?.game.name ?? "jogo"}" dos favoritos?`)) return;
+    setRemoving(gameId);
+    try {
+      await removeFromFavorites(gameId);
+      setEntries((prev) => prev.filter((e) => e.game.id !== gameId));
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    } finally { setRemoving(null); }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <p className="text-xs text-red-400 px-1">{error}</p>}
+
+      {entries.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <Bookmark className="h-12 w-12 text-muted" />
+          <p className="text-sm text-muted">Nenhum jogo favorito</p>
+          <p className="text-xs text-muted">Acesse a página de um jogo e clique em &ldquo;Favoritar&rdquo;</p>
+        </div>
+      ) : (
+        <>
+          {/* Count + view toggle */}
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs text-muted">{entries.length} {entries.length === 1 ? "jogo" : "jogos"}</p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => toggleView("list")}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => toggleView("grid")}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {viewMode === "list" ? (
+            <div className="space-y-2">
+              {entries.slice(0, visibleCount).map((entry) => (
+                <Card key={entry.id} className="flex items-center gap-3">
+                  <Link href={`/games/${entry.game.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                    {entry.game.image_url ? (
+                      <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                        <Gamepad2 className="h-6 w-6 text-muted" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{entry.game.name_pt ?? entry.game.name}</p>
+                      {entry.game.year && <span className="text-xs text-muted">{entry.game.year}</span>}
+                    </div>
+                  </Link>
+                  <button onClick={() => handleRemove(entry.game.id)} disabled={removing === entry.game.id} className="p-2 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {entries.slice(0, visibleCount).map((entry) => (
+                <div key={entry.id} className="flex flex-col">
+                  <Link href={`/games/${entry.game.id}`} className="block">
+                    {entry.game.image_url ? (
+                      <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="w-full aspect-square rounded-xl object-cover" />
+                    ) : (
+                      <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
+                        <Gamepad2 className="h-8 w-8 text-muted" />
+                      </div>
+                    )}
+                    <p className="text-xs font-semibold text-foreground truncate mt-2">{entry.game.name_pt ?? entry.game.name}</p>
+                    {entry.game.year && <p className="text-[10px] text-muted">{entry.game.year}</p>}
+                  </Link>
+                  <button onClick={() => handleRemove(entry.game.id)} disabled={removing === entry.game.id} className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 rounded-lg text-xs text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40">
+                    <Trash2 className="h-3 w-3" />
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {visibleCount < entries.length && (
+            <div ref={sentinelRef} className="flex justify-center py-3">
+              <Spinner size="md" />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------- Page ----------
 
 export default function CollectionPage() {
   const { user, loading: authLoading } = useAuthGuard();
   const [tab, setTab] = useState<Tab>("library");
 
-  // Read ?tab=wishlist from URL on mount
+  // Read ?tab= from URL on mount
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get("tab") === "wishlist") setTab("wishlist");
+    const t = searchParams.get("tab");
+    if (t === "wishlist" || t === "favorites") setTab(t);
   }, []);
 
   if (authLoading || !user) {
@@ -761,26 +913,38 @@ export default function CollectionPage() {
         <button
           onClick={() => setTab("library")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all",
             tab === "library"
               ? "bg-primary-500/20 text-primary-400"
               : "text-muted hover:text-foreground"
           )}
         >
-          <BookOpen className="h-4 w-4" />
+          <BookOpen className="h-3.5 w-3.5" />
           Biblioteca
         </button>
         <button
           onClick={() => setTab("wishlist")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all",
             tab === "wishlist"
               ? "bg-accent-500/20 text-accent-400"
               : "text-muted hover:text-foreground"
           )}
         >
-          <Heart className="h-4 w-4" />
+          <Heart className="h-3.5 w-3.5" />
           Wishlist
+        </button>
+        <button
+          onClick={() => setTab("favorites")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all",
+            tab === "favorites"
+              ? "bg-yellow-500/20 text-yellow-400"
+              : "text-muted hover:text-foreground"
+          )}
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          Favoritos
         </button>
       </div>
 
@@ -799,7 +963,7 @@ export default function CollectionPage() {
         <span className="text-muted text-lg">›</span>
       </Link>
 
-      {tab === "library" ? <LibraryTab /> : <WishlistTab />}
+      {tab === "library" ? <LibraryTab /> : tab === "wishlist" ? <WishlistTab /> : <FavoritesTab />}
     </PageContainer>
   );
 }
