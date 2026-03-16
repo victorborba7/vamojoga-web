@@ -10,10 +10,13 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   Users,
   Trophy,
+  Medal,
   ChevronRight,
   History,
   UserPlus,
+  UserRoundPlus,
 } from "lucide-react";
+import { socialSubmenu } from "@/lib/navigation";
 import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -65,6 +68,22 @@ export default function SocialHubPage() {
     <PageContainer>
       <PageHeader title="Social" subtitle="Amigos, ranking e partidas" />
 
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {socialSubmenu.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors whitespace-nowrap"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+
       {/* Quick counts */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Link href="/friends">
@@ -86,10 +105,28 @@ export default function SocialHubPage() {
         <Link href="/leaderboard">
           <Card className="flex flex-col items-center gap-2 py-5 hover:bg-card-hover transition-colors cursor-pointer">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15">
-              <Trophy className="h-5 w-5 text-amber-400" />
+              <Medal className="h-5 w-5 text-amber-400" />
             </div>
             <p className="text-sm font-semibold text-foreground">Ranking</p>
             <p className="text-xs text-muted">Classificação global</p>
+          </Card>
+        </Link>
+        <Link href="/guests">
+          <Card className="flex flex-col items-center gap-2 py-5 hover:bg-card-hover transition-colors cursor-pointer">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/15">
+              <UserRoundPlus className="h-5 w-5 text-cyan-400" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Convidados</p>
+            <p className="text-xs text-muted">Gerenciar sem conta</p>
+          </Card>
+        </Link>
+        <Link href="/achievements">
+          <Card className="flex flex-col items-center gap-2 py-5 hover:bg-card-hover transition-colors cursor-pointer">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15">
+              <Trophy className="h-5 w-5 text-violet-400" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Conquistas</p>
+            <p className="text-xs text-muted">Progressão e metas</p>
           </Card>
         </Link>
       </div>

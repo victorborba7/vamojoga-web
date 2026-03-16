@@ -6,14 +6,13 @@ import { usePathname } from "next/navigation";
 import { UserRoundPlus } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
-
-const hiddenRoutes = ["/login", "/register"];
+import { authRoutesHiddenFromMainNav, routes } from "@/lib/navigation";
 
 export function TopBar() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  if (hiddenRoutes.includes(pathname)) {
+  if (authRoutesHiddenFromMainNav.includes(pathname as (typeof authRoutesHiddenFromMainNav)[number])) {
     return null;
   }
 
@@ -40,13 +39,13 @@ export function TopBar() {
         {user && (
           <div className="flex items-center gap-2">
             <Link
-              href="/guests"
+              href={routes.guests}
               aria-label="Gerenciar convidados"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:text-primary-400 hover:bg-primary-600/10 transition-colors"
             >
               <UserRoundPlus className="h-4.5 w-4.5" />
             </Link>
-            <Link href="/profile" aria-label="Meu perfil">
+            <Link href={routes.profile} aria-label="Meu perfil">
               <Avatar
                 name={user.full_name || user.username}
                 size="sm"

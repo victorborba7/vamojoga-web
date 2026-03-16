@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
+import { gamesSubmenu } from "@/lib/navigation";
 import {
   getMyLibrary,
   getMyWishlist,
@@ -82,6 +83,22 @@ export default function GamesHubPage() {
   return (
     <PageContainer>
       <PageHeader title="Jogos" subtitle="Sua coleção e busca de jogos" />
+
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {gamesSubmenu.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors whitespace-nowrap"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* Search */}
       <div className="relative mb-6">
@@ -194,7 +211,7 @@ export default function GamesHubPage() {
           </Link>
 
           {/* Collections */}
-          <Link href="/collection">
+          <Link href="/collections">
             <Card className="flex items-center gap-3 mb-6 hover:bg-card-hover transition-colors cursor-pointer">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/15 shrink-0">
                 <Layers className="h-5 w-5 text-indigo-400" />

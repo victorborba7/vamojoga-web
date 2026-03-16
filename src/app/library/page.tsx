@@ -786,7 +786,7 @@ export default function CollectionPage() {
 
       {/* Collections compartilhados */}
       <Link
-        href="/collection"
+        href="/collections"
         className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3 mb-4 active:opacity-70"
       >
         <div className="flex items-center gap-3">

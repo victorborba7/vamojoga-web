@@ -18,6 +18,8 @@ import {
   FileText,
   Trophy,
   History,
+  Settings,
+  User,
 } from "lucide-react";
 import { useAuthGuard } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -74,6 +76,26 @@ export default function ProfilePage() {
   return (
     <PageContainer>
       <PageHeader title="Perfil" />
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <Card className="flex flex-col items-center justify-center gap-1 py-3 border-primary-500/30 bg-primary-500/10">
+          <User className="h-4 w-4 text-primary-400" />
+          <p className="text-[11px] font-medium text-foreground">Meu perfil</p>
+        </Card>
+        <Card className="flex flex-col items-center justify-center gap-1 py-3">
+          <Settings className="h-4 w-4 text-muted" />
+          <p className="text-[11px] font-medium text-foreground">Configuracoes</p>
+          <p className="text-[10px] text-muted">Em breve</p>
+        </Card>
+        <Button
+          variant="ghost"
+          onClick={handleLogout}
+          className="h-full min-h-18 flex flex-col items-center justify-center gap-1 text-red-400 hover:bg-red-500/10 hover:text-red-400 border border-red-500/20"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="text-[11px] font-medium">Sair</span>
+        </Button>
+      </div>
 
       {/* Identity */}
       <Card className="flex items-center gap-4 mb-4">
@@ -150,15 +172,6 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Logout */}
-      <Button
-        variant="ghost"
-        onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-400 border border-red-500/20"
-      >
-        <LogOut className="h-4 w-4" />
-        Sair
-      </Button>
     </PageContainer>
   );
 }
