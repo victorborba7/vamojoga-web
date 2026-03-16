@@ -320,6 +320,7 @@ export default function ScoringTemplatesPage() {
       <PageHeader
         title="Templates de Pontuação"
         subtitle="Crie e explore templates de pontuação para seus jogos"
+        onBack={() => router.back()}
       />
 
       {/* Tabs */}

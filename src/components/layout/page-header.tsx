@@ -6,15 +6,21 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   backHref?: string;
+  onBack?: () => void;
 }
 
-export function PageHeader({ title, subtitle, backHref }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, backHref, onBack }: PageHeaderProps) {
   return (
     <header className="mb-6">
       {backHref && (
-        <Link href={backHref} className="text-sm text-muted hover:text-foreground mb-2 inline-block">
+        <Link href={backHref} className="text-sm text-muted hover:text-foreground mb-2 inline-flex items-center gap-1">
           ← Voltar
         </Link>
+      )}
+      {onBack && (
+        <button onClick={onBack} className="text-sm text-muted hover:text-foreground mb-2 inline-flex items-center gap-1 cursor-pointer">
+          ← Voltar
+        </button>
       )}
       <h1 className="text-2xl font-bold text-foreground">{title}</h1>
       {subtitle && (

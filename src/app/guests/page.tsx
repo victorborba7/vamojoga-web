@@ -135,14 +135,14 @@ export default function GuestsPage() {
   if (authLoading || loading) {
     return (
       <PageContainer>
-        <PageHeader title="Convidados" subtitle="Carregando..." />
+        <PageHeader title="Convidados" subtitle="Carregando..." onBack={() => router.back()} />
       </PageContainer>
     );
   }
 
   return (
     <PageContainer>
-      <PageHeader title="Convidados" subtitle="Gerencie participantes sem conta" />
+      <PageHeader title="Convidados" subtitle="Gerencie participantes sem conta" onBack={() => router.back()} />
 
       <Card className="mb-4">
         <form onSubmit={handleCreateGuest} className="space-y-3">
