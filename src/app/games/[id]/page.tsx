@@ -36,6 +36,7 @@ import {
   getMyFavorites,
   addToFavorites,
   removeFromFavorites,
+  getGameExpansions,
   getFriends,
   getUserLibrary,
   ApiError,
@@ -77,6 +78,7 @@ export default function GameDetailPage({ params }: Props) {
   const [inLibrary, setInLibrary] = useState(false);
   const [inWishlist, setInWishlist] = useState(false);
   const [inFavorites, setInFavorites] = useState(false);
+  const [expansions, setExpansions] = useState<GameResponse[]>([]);
   const [friendsWhoOwn, setFriendsWhoOwn] = useState<FriendResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -89,13 +91,14 @@ export default function GameDetailPage({ params }: Props) {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [g, allMatches, userStats, lib, wish, favs, friends] = await Promise.all([
+      const [g, allMatches, userStats, lib, wish, favs, exps, friends] = await Promise.all([
         getGame(id),
         getUserMatches(user.id),
         getUserStats(user.id),
         getMyLibrary(),
         getMyWishlist(),
         getMyFavorites(),
+        getGameExpansions(id),
         getFriends(),
       ]);
       setGame(g);
@@ -104,6 +107,7 @@ export default function GameDetailPage({ params }: Props) {
       setInLibrary(lib.some((e) => e.game.id === id));
       setInWishlist(wish.some((e) => e.game.id === id));
       setInFavorites(favs.some((e) => e.game.id === id));
+      setExpansions(exps);
 
       // Check which friends own this game (parallel requests)
       const ownerChecks = await Promise.all(
@@ -489,6 +493,42 @@ export default function GameDetailPage({ params }: Props) {
 
       {/* Price history */}
       <PriceChart gameId={id} />
+
+      {/* Expansions */}
+      {expansions.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3 px-1">
+            Expansões disponíveis
+          </p>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scroll-smooth">
+            {expansions.map((exp) => (
+              <Link
+                key={exp.id}
+                href={`/games/${exp.id}`}
+                className="flex-none w-28 snap-start flex flex-col gap-1.5"
+              >
+                {exp.image_url ? (
+                  <img
+                    src={exp.image_url}
+                    alt={exp.name_pt ?? exp.name}
+                    className="w-full aspect-square rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
+                    <Gamepad2 className="h-8 w-8 text-muted" />
+                  </div>
+                )}
+                <p className="text-xs font-medium text-foreground line-clamp-2 leading-tight">
+                  {exp.name_pt ?? exp.name}
+                </p>
+                {exp.year && (
+                  <p className="text-[10px] text-muted">{exp.year}</p>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Match history */}
       <div>

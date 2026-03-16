@@ -177,6 +177,10 @@ export async function getGameRecommendations(limit = 10): Promise<GameResponse[]
   return request<GameResponse[]>(`/games/recommendations/?limit=${limit}`);
 }
 
+export async function getGameExpansions(gameId: string): Promise<GameResponse[]> {
+  return request<GameResponse[]>(`/games/${gameId}/expansions`);
+}
+
 export async function createGame(data: GameCreate): Promise<GameResponse> {
   return request<GameResponse>("/games/", {
     method: "POST",
