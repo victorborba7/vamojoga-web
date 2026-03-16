@@ -139,6 +139,7 @@ export default function NewMatchPage() {
     Record<string, Record<string, TemplateScoreEntry>>
   >({});
 
+  const [manualTieBreak, setManualTieBreak] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [unlockedAchievements, setUnlockedAchievements] = useState<NewlyUnlockedAchievement[]>([]);
@@ -303,6 +304,7 @@ export default function NewMatchPage() {
   }
 
   function updateIndividualScore(playerId: string, score: number) {
+    setManualTieBreak(false);
     setIndividualPlayers((prev) => {
       const updated = prev.map((p) =>
         p.user.id === playerId ? { ...p, score } : p
@@ -316,6 +318,7 @@ export default function NewMatchPage() {
   }
 
   function breakTiesSequentially() {
+    setManualTieBreak(true);
     setIndividualPlayers((prev) => prev.map((p, i) => ({ ...p, position: i + 1 })));
   }
 
@@ -395,7 +398,7 @@ export default function NewMatchPage() {
         }
         return players;
       });
-    } else if (scoringType === "numeric") {
+    } else if (scoringType === "numeric" && !manualTieBreak) {
       autoRankByScore();
     }
     // ranking: positions already set by manual ordering

@@ -65,16 +65,18 @@ export function SortableNumericPlayerItem({
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onScoreChange(Math.max(0, score - 1))}
+              onClick={() => onScoreChange(score - 1)}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition-colors cursor-pointer"
             >
               <Minus className="h-3 w-3" />
             </button>
             <input
               type="number"
-              min={0}
               value={score}
-              onChange={(e) => onScoreChange(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                onScoreChange(isNaN(v) ? 0 : v);
+              }}
               className="text-lg font-bold text-foreground w-12 text-center bg-transparent border-b-2 border-neutral-700 focus:border-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <button
