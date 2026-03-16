@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { MatchCard } from "@/components/match/match-card";
@@ -62,10 +64,18 @@ export default function MatchesPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Partidas"
-        subtitle="Seu histórico de partidas"
-      />
+      <div className="flex items-center justify-between mb-1">
+        <PageHeader
+          title="Partidas"
+          subtitle="Seu histórico de partidas"
+        />
+        <Link href="/matches/new">
+          <Button size="sm" className="flex items-center gap-1.5 shrink-0">
+            <Plus className="h-4 w-4" />
+            Nova partida
+          </Button>
+        </Link>
+      </div>
 
       {matches.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -75,6 +85,12 @@ export default function MatchesPage() {
           <p className="mt-1 text-sm text-neutral-500">
             Registre a primeira partida para começar!
           </p>
+          <Link href="/matches/new" className="mt-4">
+            <Button size="sm" className="flex items-center gap-1.5">
+              <Plus className="h-4 w-4" />
+              Registrar partida
+            </Button>
+          </Link>
         </div>
       ) : (
         <div className="space-y-4">
