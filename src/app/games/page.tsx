@@ -152,7 +152,7 @@ export default function GamesHubPage() {
           ) : (
             <div className="space-y-2">
               {results.map((game) => (
-                <Link key={game.id} href={`/games/${game.id}`}>
+                <Link key={game.id} href={`/games/${game.id}`} className="block">
                   <Card className="flex items-center gap-3 hover:bg-card-hover transition-colors cursor-pointer">
                     {game.image_url ? (
                       <Image
