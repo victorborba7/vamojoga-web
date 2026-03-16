@@ -205,7 +205,7 @@ export default function GameDetailPage({ params }: Props) {
         {game.image_url ? (
           <img
             src={game.image_url}
-            alt={game.name}
+            alt={game.name_pt ?? game.name}
             className="h-28 w-28 rounded-2xl object-cover shrink-0 shadow-lg"
           />
         ) : (
@@ -214,7 +214,7 @@ export default function GameDetailPage({ params }: Props) {
           </div>
         )}
         <div className="flex-1 min-w-0 pt-1">
-          <h1 className="text-xl font-bold text-foreground leading-tight">{game.name}</h1>
+          <h1 className="text-xl font-bold text-foreground leading-tight">{game.name_pt ?? game.name}</h1>
           {game.subtitle && (
             <p className="text-xs text-muted mt-0.5 truncate">{game.subtitle}</p>
           )}
@@ -236,9 +236,9 @@ export default function GameDetailPage({ params }: Props) {
               <span className="text-xs text-muted">/ 10 BGG</span>
             </div>
           )}
-          {game.description && (
+          {(game.description_pt ?? game.description) && (
             <p className="text-xs text-muted mt-2 line-clamp-2 leading-relaxed">
-              {game.description}{" "}
+              {game.description_pt ?? game.description}{" "}
               <button
                 onClick={() => setShowDescModal(true)}
                 className="text-primary-400 font-medium hover:underline inline"
@@ -321,7 +321,7 @@ export default function GameDetailPage({ params }: Props) {
       </div>
 
       {/* Description modal */}
-      {showDescModal && game.description && (
+      {showDescModal && (game.description_pt ?? game.description) && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setShowDescModal(false)}
@@ -333,7 +333,7 @@ export default function GameDetailPage({ params }: Props) {
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
             <p className="text-base font-bold text-foreground mb-4">Sobre o jogo</p>
             <div className="overflow-y-auto">
-              <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{game.description}</p>
+              <p className="text-sm text-muted leading-relaxed whitespace-pre-line">{game.description_pt ?? game.description}</p>
             </div>
           </div>
         </div>

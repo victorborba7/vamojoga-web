@@ -380,7 +380,7 @@ export default function ScoringTemplatesPage() {
             <EmptyState
               icon={FileText}
               label="Nenhum template"
-              sublabel={`Nenhum template encontrado para ${browseGame.name}`}
+              sublabel={`Nenhum template encontrado para ${browseGame.name_pt ?? browseGame.name}`}
             />
           )}
 

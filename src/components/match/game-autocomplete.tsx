@@ -110,7 +110,7 @@ export function GameAutocomplete({
       <div className="flex items-center gap-3 rounded-xl border border-primary-500 bg-primary-600/10 p-4">
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">
-            {selectedGame.name}
+            {selectedGame.name_pt ?? selectedGame.name}
           </p>
           <p className="text-xs text-neutral-500 mt-1">
             {selectedGame.min_players}-{selectedGame.max_players} jogadores
@@ -183,7 +183,7 @@ export function GameAutocomplete({
             >
               <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground">
-                  {game.name}
+                  {game.name_pt ?? game.name}
                 </p>
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {game.min_players}-{game.max_players} jogadores

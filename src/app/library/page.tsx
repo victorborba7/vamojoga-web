@@ -165,7 +165,7 @@ function GameSearchInput({ onAdd, excludeIds, placeholder }: GameSearchInputProp
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{game.name}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{game.name_pt ?? game.name}</p>
                   {game.year && <p className="text-xs text-muted">{game.year}</p>}
                 </div>
                 {adding === game.id ? (
@@ -293,7 +293,7 @@ function LibraryTab() {
 
   async function handleRemove(gameId: string) {
     const entry = entries.find((e) => e.game.id === gameId);
-    if (!confirm(`Remover "${entry?.game.name ?? "jogo"}" da sua biblioteca?`)) return;
+    if (!confirm(`Remover "${entry?.game.name_pt ?? entry?.game.name ?? "jogo"}" da sua biblioteca?`)) return;
     setRemoving(gameId);
     try {
       await removeFromLibrary(gameId);
@@ -304,12 +304,12 @@ function LibraryTab() {
   }
 
   const sortedEntries = [...entries].sort((a, b) => {
-    if (sortOrder === "alpha") return a.game.name.localeCompare(b.game.name);
+    if (sortOrder === "alpha") return (a.game.name_pt ?? a.game.name).localeCompare(b.game.name_pt ?? b.game.name);
     if (sortOrder === "most_played") return b.match_count - a.match_count;
     return 0;
   });
   const displayEntries = filterQuery.trim()
-    ? sortedEntries.filter((e) => e.game.name.toLowerCase().includes(filterQuery.toLowerCase()))
+    ? sortedEntries.filter((e) => (e.game.name_pt ?? e.game.name).toLowerCase().includes(filterQuery.toLowerCase()))
     : sortedEntries;
 
   if (loading) {
@@ -400,14 +400,14 @@ function LibraryTab() {
                 <Card key={entry.id} className="flex items-center gap-3">
                   <Link href={`/games/${entry.game.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                     {entry.game.image_url ? (
-                      <img src={entry.game.image_url} alt={entry.game.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                      <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="h-12 w-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                         <Gamepad2 className="h-6 w-6 text-muted" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{entry.game.name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{entry.game.name_pt ?? entry.game.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {entry.game.year && <span className="text-xs text-muted">{entry.game.year}</span>}
                         <Badge variant="default" className="text-[10px] px-1.5 py-0">
@@ -428,13 +428,13 @@ function LibraryTab() {
                 <div key={entry.id} className="flex flex-col">
                   <Link href={`/games/${entry.game.id}`} className="block">
                     {entry.game.image_url ? (
-                      <img src={entry.game.image_url} alt={entry.game.name} className="w-full aspect-square rounded-xl object-cover" />
+                      <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="w-full aspect-square rounded-xl object-cover" />
                     ) : (
                       <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
                         <Gamepad2 className="h-8 w-8 text-muted" />
                       </div>
                     )}
-                    <p className="text-xs font-semibold text-foreground truncate mt-2">{entry.game.name}</p>
+                    <p className="text-xs font-semibold text-foreground truncate mt-2">{entry.game.name_pt ?? entry.game.name}</p>
                     {entry.game.year && <p className="text-[10px] text-muted">{entry.game.year}</p>}
                     <Badge variant="default" className="text-[10px] px-1.5 py-0 mt-1 w-fit">
                       {entry.match_count === 0 ? "Nunca jogado" : `${entry.match_count}x jogado`}
@@ -565,7 +565,7 @@ function WishlistTab() {
 
   async function handleRemove(gameId: string) {
     const entry = entries.find((e) => e.game.id === gameId);
-    if (!confirm(`Remover "${entry?.game.name ?? "jogo"}" da sua lista de desejos?`)) return;
+    if (!confirm(`Remover "${entry?.game.name_pt ?? entry?.game.name ?? "jogo"}" da sua lista de desejos?`)) return;
     setRemoving(gameId);
     try {
       await removeFromWishlist(gameId);
@@ -639,14 +639,14 @@ function WishlistTab() {
                   <div className="flex items-center gap-3">
                     <Link href={`/games/${entry.game.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                       {entry.game.image_url ? (
-                        <img src={entry.game.image_url} alt={entry.game.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                        <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
                       ) : (
                         <div className="h-12 w-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                           <Gamepad2 className="h-6 w-6 text-muted" />
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{entry.game.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{entry.game.name_pt ?? entry.game.name}</p>
                         {entry.game.year && <span className="text-xs text-muted">{entry.game.year}</span>}
                       </div>
                     </Link>
@@ -686,13 +686,13 @@ function WishlistTab() {
                 <div key={entry.id} className="flex flex-col">
                   <Link href={`/games/${entry.game.id}`} className="block">
                     {entry.game.image_url ? (
-                      <img src={entry.game.image_url} alt={entry.game.name} className="w-full aspect-square rounded-xl object-cover" />
+                      <img src={entry.game.image_url} alt={entry.game.name_pt ?? entry.game.name} className="w-full aspect-square rounded-xl object-cover" />
                     ) : (
                       <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center">
                         <Gamepad2 className="h-8 w-8 text-muted" />
                       </div>
                     )}
-                    <p className="text-xs font-semibold text-foreground truncate mt-2">{entry.game.name}</p>
+                    <p className="text-xs font-semibold text-foreground truncate mt-2">{entry.game.name_pt ?? entry.game.name}</p>
                     {entry.game.year && <p className="text-[10px] text-muted">{entry.game.year}</p>}
                     {entry.friends_who_own.length > 0 && (
                       <p className="text-[10px] text-primary-400 truncate mt-0.5">

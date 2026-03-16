@@ -418,7 +418,7 @@ function GameRow({
   return (
     <Card className="p-3 flex items-center gap-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{game.name}</p>
+        <p className="text-sm font-medium text-foreground truncate">{game.name_pt ?? game.name}</p>
         <p className="text-xs text-muted">
           {game.year && `${game.year} · `}
           {game.bayes_rating && `★ ${game.bayes_rating.toFixed(1)} · `}
@@ -448,7 +448,7 @@ function GameGridCard({
       {game.image_url ? (
         <Image
           src={game.image_url}
-          alt={game.name}
+          alt={game.name_pt ?? game.name}
           width={320}
           height={320}
           className="w-full aspect-square rounded-xl object-cover"
@@ -458,7 +458,7 @@ function GameGridCard({
           <Gamepad2 className="h-8 w-8 text-muted" />
         </div>
       )}
-      <p className="text-xs font-semibold text-foreground truncate mt-2">{game.name}</p>
+      <p className="text-xs font-semibold text-foreground truncate mt-2">{game.name_pt ?? game.name}</p>
       <p className="text-[10px] text-muted">
         {game.year ? `${game.year} · ` : ""}
         {game.bayes_rating ? `★ ${game.bayes_rating.toFixed(1)}` : ""}

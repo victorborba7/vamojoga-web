@@ -207,7 +207,7 @@ export default function FriendDetailPage({
                     {entry.game.image_url ? (
                       <img
                         src={entry.game.image_url}
-                        alt={entry.game.name}
+                        alt={entry.game.name_pt ?? entry.game.name}
                         className="h-12 w-12 rounded-lg object-cover shrink-0"
                       />
                     ) : (
@@ -217,7 +217,7 @@ export default function FriendDetailPage({
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {entry.game.name}
+                        {entry.game.name_pt ?? entry.game.name}
                       </p>
                       <p className="text-xs text-muted">
                         {entry.match_count}{" "}
@@ -300,7 +300,7 @@ export default function FriendDetailPage({
                     {entry.game.image_url ? (
                       <img
                         src={entry.game.image_url}
-                        alt={entry.game.name}
+                        alt={entry.game.name_pt ?? entry.game.name}
                         className="h-12 w-12 rounded-lg object-cover shrink-0"
                       />
                     ) : (
@@ -310,7 +310,7 @@ export default function FriendDetailPage({
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {entry.game.name}
+                        {entry.game.name_pt ?? entry.game.name}
                       </p>
                       {entry.friends_who_own.length > 0 && (
                         <p className="text-xs text-accent-400 truncate">

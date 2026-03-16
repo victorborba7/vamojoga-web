@@ -140,7 +140,7 @@ export default function GamesHubPage() {
                     {game.image_url ? (
                       <Image
                         src={game.image_url}
-                        alt={game.name}
+                        alt={game.name_pt ?? game.name}
                         width={48}
                         height={48}
                         className="h-12 w-12 rounded-lg object-cover shrink-0"
@@ -152,7 +152,7 @@ export default function GamesHubPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {game.name}
+                        {game.name_pt ?? game.name}
                       </p>
                       {game.year && (
                         <p className="text-xs text-muted">{game.year}</p>
@@ -245,7 +245,7 @@ export default function GamesHubPage() {
                       {entry.game.image_url ? (
                         <Image
                           src={entry.game.image_url}
-                          alt={entry.game.name}
+                          alt={entry.game.name_pt ?? entry.game.name}
                           width={80}
                           height={80}
                           className="h-20 w-20 rounded-xl object-cover group-hover:ring-2 ring-primary-500/40 transition-all"
@@ -256,7 +256,7 @@ export default function GamesHubPage() {
                         </div>
                       )}
                       <p className="text-[10px] text-muted text-center line-clamp-2 leading-tight">
-                        {entry.game.name}
+                        {entry.game.name_pt ?? entry.game.name}
                       </p>
                     </div>
                   </Link>

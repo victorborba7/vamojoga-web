@@ -62,6 +62,9 @@ export interface GameResponse {
   thumbnail_url: string | null;
   playing_time: number | null;
   last_bgg_sync_at: string | null;
+  // Ludopedia (Portuguese localization)
+  name_pt: string | null;
+  description_pt: string | null;
   mechanics: string[];
   categories: string[];
   designers: string[];
@@ -235,6 +238,7 @@ export interface MemberResponse {
 export interface CollectionGameResponse {
   game_id: string;
   name: string;
+  name_pt: string | null;
   bgg_id: number | null;
   image_url: string | null;
   bayes_rating: number | null;

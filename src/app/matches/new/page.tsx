@@ -1851,7 +1851,7 @@ export default function NewMatchPage() {
         <div className="space-y-6">
           <Card>
             <p className="text-xs text-muted mb-1 font-medium text-center">
-              {selectedGame?.name}
+              {selectedGame?.name_pt ?? selectedGame?.name}
             </p>
             <p className="text-xs text-muted mb-4 font-medium text-center">
               Resumo da Partida
@@ -1931,7 +1931,7 @@ export default function NewMatchPage() {
         <div className="space-y-6">
           <Card>
             <p className="text-xs text-muted mb-1 font-medium text-center">
-              {selectedGame?.name}
+              {selectedGame?.name_pt ?? selectedGame?.name}
             </p>
             <p className="text-xs text-muted mb-4 font-medium text-center">
               Resultado Final
@@ -2000,7 +2000,7 @@ export default function NewMatchPage() {
         <div className="space-y-6">
           <Card>
             <p className="text-xs text-muted mb-1 font-medium text-center">
-              {selectedGame?.name}
+              {selectedGame?.name_pt ?? selectedGame?.name}
             </p>
             <p className="text-xs text-muted mb-4 font-medium text-center">
               Pontuação Colaborativa
