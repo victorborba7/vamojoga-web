@@ -26,9 +26,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake, Share2 } from "lucide-react";
+import { Check, Minus, Plus, UserPlus, Users, User, X, Trophy, Hash, BarChart3, ToggleLeft, Trash2, GripVertical, Crown, Handshake, Share2, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, listGuests, ApiError } from "@/lib/api";
+import { createMatch, getScoringTemplatesByGame, getScoringTemplate, createScoringTemplate, listGuests, getGameExpansions, ApiError } from "@/lib/api";
 import type {
   UserResponse,
   GuestResponse,
@@ -114,6 +114,8 @@ export default function NewMatchPage() {
   const [step, setStep] = useState<Step>("game");
   const [mode, setMode] = useState<MatchMode>("teams");
   const [selectedGame, setSelectedGame] = useState<GameResponse | null>(null);
+  const [availableExpansions, setAvailableExpansions] = useState<GameResponse[]>([]);
+  const [selectedExpansionIds, setSelectedExpansionIds] = useState<Set<string>>(new Set());
   const [guests, setGuests] = useState<GuestResponse[]>([]);
 
   // Teams mode
@@ -212,14 +214,21 @@ export default function NewMatchPage() {
       setAvailableTemplates([]);
       setSelectedTemplate(null);
       setUseTemplate(false);
+      setAvailableExpansions([]);
+      setSelectedExpansionIds(new Set());
       return;
     }
     (async () => {
       try {
-        const templates = await getScoringTemplatesByGame(selectedGame.id);
+        const [templates, exps] = await Promise.all([
+          getScoringTemplatesByGame(selectedGame.id),
+          getGameExpansions(selectedGame.id),
+        ]);
         setAvailableTemplates(templates);
+        setAvailableExpansions(exps);
       } catch {
         setAvailableTemplates([]);
+        setAvailableExpansions([]);
       }
     })();
   }, [selectedGame]);
@@ -542,6 +551,7 @@ export default function NewMatchPage() {
         scoring_template_id: useTemplate && selectedTemplate ? selectedTemplate.id : undefined,
         match_mode: mode === "cooperative" ? "cooperative" : mode === "teams" ? "team" : (useTemplate && selectedTemplate ? selectedTemplate.match_mode : scoringType),
         collaborative_scoring: collaborativeScoring,
+        expansion_ids: selectedExpansionIds.size > 0 ? [...selectedExpansionIds] : undefined,
         players,
       });
       if (collaborativeScoring) {
@@ -649,10 +659,61 @@ export default function NewMatchPage() {
             selectedGame={selectedGame}
             onSelect={(game) => {
               setSelectedGame(game);
-              setStep("template");
+              setSelectedExpansionIds(new Set());
             }}
-            onClear={() => setSelectedGame(null)}
+            onClear={() => {
+              setSelectedGame(null);
+              setSelectedExpansionIds(new Set());
+            }}
           />
+
+          {/* Expansions selector — shown only when the game has expansions */}
+          {selectedGame && availableExpansions.length > 0 && (
+            <Card>
+              <p className="text-xs font-medium text-muted mb-3">Expansões utilizadas</p>
+              <div className="space-y-2">
+                {availableExpansions.map((exp) => {
+                  const checked = selectedExpansionIds.has(exp.id);
+                  return (
+                    <button
+                      key={exp.id}
+                      onClick={() =>
+                        setSelectedExpansionIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(exp.id)) next.delete(exp.id);
+                          else next.add(exp.id);
+                          return next;
+                        })
+                      }
+                      className={`flex items-center gap-3 w-full rounded-xl px-3 py-2.5 border transition-colors text-left ${
+                        checked
+                          ? "border-primary-500/50 bg-primary-500/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                      }`}
+                    >
+                      {exp.image_url ? (
+                        <img src={exp.image_url} alt="" className="h-9 w-9 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                          <Gamepad2 className="h-4 w-4 text-muted" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{exp.name_pt ?? exp.name}</p>
+                        {exp.year && <p className="text-[10px] text-muted">{exp.year}</p>}
+                      </div>
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        checked ? "border-primary-400 bg-primary-400" : "border-white/30"
+                      }`}>
+                        {checked && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           {selectedGame && (
             <Button className="w-full" onClick={() => setStep("template")}>
               Próximo
@@ -2052,6 +2113,25 @@ export default function NewMatchPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Expansões selecionadas — mostradas no step confirm */}
+      {step === "confirm" && selectedExpansionIds.size > 0 && (
+        <Card>
+          <p className="text-xs text-muted font-medium mb-2">Expansões nesta partida</p>
+          <div className="flex flex-wrap gap-2">
+            {availableExpansions
+              .filter((e) => selectedExpansionIds.has(e.id))
+              .map((exp) => (
+                <div key={exp.id} className="flex items-center gap-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 px-2.5 py-1">
+                  {exp.image_url && (
+                    <img src={exp.image_url} alt="" className="h-4 w-4 rounded-full object-cover" />
+                  )}
+                  <span className="text-xs text-primary-400 font-medium">{exp.name_pt ?? exp.name}</span>
+                </div>
+              ))}
+          </div>
+        </Card>
       )}
 
       {/* Achievement unlock overlay */}

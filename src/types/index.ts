@@ -96,6 +96,7 @@ export interface MatchCreate {
   scoring_template_id?: string;
   match_mode?: string;
   collaborative_scoring?: boolean;
+  expansion_ids?: string[];
   players: MatchPlayerCreate[];
 }
 
@@ -156,6 +157,7 @@ export interface MatchResponse {
   scoring_template_id: string | null;
   scoring_template_name: string | null;
   players: MatchPlayerResponse[];
+  expansions: Array<{ id: string; name: string; name_pt: string | null; image_url: string | null }>;
   unlocked_achievements: NewlyUnlockedAchievement[];
   created_at: string;
 }
