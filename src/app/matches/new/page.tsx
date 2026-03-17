@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import {
   DndContext,
   closestCenter,
@@ -43,6 +42,7 @@ import type {
 } from "@/types";
 import { GameAutocomplete } from "@/components/match/game-autocomplete";
 import { PlayerAutocomplete } from "@/components/match/player-autocomplete";
+import { GuestManagerModal } from "@/components/match/guest-manager-modal";
 
 type Step = "game" | "template" | "players" | "score" | "confirm";
 type MatchMode = "teams" | "individual" | "cooperative";
@@ -140,6 +140,7 @@ export default function NewMatchPage() {
   >({});
 
   const [manualTieBreak, setManualTieBreak] = useState(false);
+  const [showGuestManager, setShowGuestManager] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [unlockedAchievements, setUnlockedAchievements] = useState<NewlyUnlockedAchievement[]>([]);
@@ -192,21 +193,23 @@ export default function NewMatchPage() {
   const [newTemplateFields, setNewTemplateFields] = useState<InlineFieldDraft[]>([]);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
+  async function refreshGuests() {
+    try {
+      const data = await listGuests();
+      setGuests(data);
+    } catch {
+      setGuests([]);
+    }
+  }
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.push("/login");
       return;
     }
-
-    (async () => {
-      try {
-        const data = await listGuests();
-        setGuests(data);
-      } catch {
-        setGuests([]);
-      }
-    })();
+    refreshGuests();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, router]);
 
   // Fetch available templates when game is selected
@@ -1219,9 +1222,9 @@ export default function NewMatchPage() {
           <Card>
             <div className="flex items-center justify-between gap-2 mb-2">
               <p className="text-xs text-muted font-medium">Convidados salvos</p>
-              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+              <button onClick={() => setShowGuestManager(true)} className="text-[11px] text-primary-400 hover:text-primary-300 cursor-pointer">
                 Gerenciar convidados
-              </Link>
+              </button>
             </div>
             {availableGuests.length === 0 ? (
               <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
@@ -1303,9 +1306,9 @@ export default function NewMatchPage() {
           <Card>
             <div className="flex items-center justify-between gap-2 mb-2">
               <p className="text-xs text-muted font-medium">Convidados salvos</p>
-              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+              <button onClick={() => setShowGuestManager(true)} className="text-[11px] text-primary-400 hover:text-primary-300 cursor-pointer">
                 Gerenciar convidados
-              </Link>
+              </button>
             </div>
             {availableGuests.length === 0 ? (
               <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
@@ -1389,9 +1392,9 @@ export default function NewMatchPage() {
           <Card>
             <div className="flex items-center justify-between gap-2 mb-2">
               <p className="text-xs text-muted font-medium">Convidados salvos</p>
-              <Link href="/guests" className="text-[11px] text-primary-400 hover:text-primary-300">
+              <button onClick={() => setShowGuestManager(true)} className="text-[11px] text-primary-400 hover:text-primary-300 cursor-pointer">
                 Gerenciar convidados
-              </Link>
+              </button>
             </div>
             {availableGuests.length === 0 ? (
               <p className="text-xs text-neutral-600">Nenhum convidado disponivel para adicionar</p>
@@ -2184,6 +2187,12 @@ export default function NewMatchPage() {
           </div>
         </div>
       )}
+
+      <GuestManagerModal
+        open={showGuestManager}
+        onClose={() => setShowGuestManager(false)}
+        onGuestsChanged={refreshGuests}
+      />
     </PageContainer>
   );
 }
